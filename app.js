@@ -1,0 +1,1116 @@
+// app.js - Periodentracker v2 (3 Dateien)
+// Neu: tägliches Blutungs-Logging + automatische Perioden-Erkennung (inkl. vergessene Tage)
+// Neu: Notiz-Icon im Kalender
+// Neu: Stats: Eisprung-Zyklustag für letzte 12 Zyklen (LH+ berücksichtigt)
+
+const KEY_BLEED   = "pt_bleed_v1";   // array of ISO dates with bleeding
+const KEY_NOTES   = "pt_notes_v1";   // {dateISO: [notes]}
+const KEY_IMAGES  = "pt_images_v1";  // [{id,kind,dataUrl,createdAt}]
+const KEY_SETTINGS= "pt_settings_v1";// {cycleLen,periodLen,ovuDay,motherSign,fatherSign}
+
+// ---------- utils ----------
+function loadJSON(key, fallback){ try{const r=localStorage.getItem(key);return r?JSON.parse(r):fallback;}catch{return fallback;}}
+function saveJSON(key, v){ localStorage.setItem(key, JSON.stringify(v));}
+function uid(){ return crypto.randomUUID?crypto.randomUUID():String(Date.now())+"_"+Math.random().toString(16).slice(2);}
+
+function parseISO(s){ return new Date(s+"T00:00:00");}
+function iso(d){
+  const dd=new Date(d); const y=dd.getFullYear();
+  const m=String(dd.getMonth()+1).padStart(2,"0");
+  const day=String(dd.getDate()).padStart(2,"0");
+  return `${y}-${m}-${day}`;
+}
+function addDays(date, days){ const d=new Date(date); d.setDate(d.getDate()+days); return d;}
+function diffDays(a,b){
+  const ms=24*60*60*1000;
+  const aa=new Date(a.getFullYear(),a.getMonth(),a.getDate()).getTime();
+  const bb=new Date(b.getFullYear(),b.getMonth(),b.getDate()).getTime();
+  return Math.round((bb-aa)/ms);
+}
+function clamp(n,min,max){ return Math.max(min, Math.min(max, n));}
+function between(d,a,b){ const t=d.getTime(); return t>=a.getTime() && t<=b.getTime();}
+function formatDateDE(dateOrISO){
+  const d=typeof dateOrISO==="string"?parseISO(dateOrISO):dateOrISO;
+  return d.toLocaleDateString("de-DE",{year:"numeric",month:"2-digit",day:"2-digit"});
+}
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g,(c)=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;" }[c]));
+}
+
+function shortText(s, max=42){
+  const t = String(s||"").trim();
+  if (!t) return "";
+  return t.length > max ? (t.slice(0, max-1) + "…") : t;
+}
+
+// ---------- astrology helpers (optional fun layer) ----------
+const WESTERN_SIGNS = [
+  { name:"Steinbock", start:[12,22], end:[1,19], adj:["zielstrebig","verlässlich","pragmatisch"], element:"earth" },
+  { name:"Wassermann", start:[1,20], end:[2,18], adj:["unabhängig","originell","idealistisch"], element:"air" },
+  { name:"Fische", start:[2,19], end:[3,20], adj:["einfühlsam","intuitiv","kreativ"], element:"water" },
+  { name:"Widder", start:[3,21], end:[4,19], adj:["mutig","direkt","energiegeladen"], element:"fire" },
+  { name:"Stier", start:[4,20], end:[5,20], adj:["genussvoll","stabil","geduldig"], element:"earth" },
+  { name:"Zwillinge", start:[5,21], end:[6,20], adj:["neugierig","kommunikativ","vielseitig"], element:"air" },
+  { name:"Krebs", start:[6,21], end:[7,22], adj:["fürsorglich","sensibel","loyal"], element:"water" },
+  { name:"Löwe", start:[7,23], end:[8,22], adj:["warmherzig","stolz","kreativ"], element:"fire" },
+  { name:"Jungfrau", start:[8,23], end:[9,22], adj:["analytisch","hilfsbereit","geordnet"], element:"earth" },
+  { name:"Waage", start:[9,23], end:[10,22], adj:["harmonisch","diplomatisch","ästhetisch"], element:"air" },
+  { name:"Skorpion", start:[10,23], end:[11,21], adj:["intensiv","treu","willensstark"], element:"water" },
+  { name:"Schütze", start:[11,22], end:[12,21], adj:["optimistisch","freiheitsliebend","ehrlich"], element:"fire" },
+];
+
+// Chinese New Year dates (Gregorian). Used to decide which zodiac year a date belongs to.
+// Source examples: Wikipedia / Royal Museums Greenwich list the same dates for these years.
+const CHINESE_NEW_YEAR = {
+  2019:"2019-02-05",
+  2020:"2020-01-25",
+  2021:"2021-02-12",
+  2022:"2022-02-01",
+  2023:"2023-01-22",
+  2024:"2024-02-10",
+  2025:"2025-01-29",
+  2026:"2026-02-17",
+  2027:"2027-02-06",
+  2028:"2028-01-26",
+  2029:"2029-02-13",
+  2030:"2030-02-03",
+  2031:"2031-01-23",
+  2032:"2032-02-11",
+  2033:"2033-01-31",
+};
+
+const CHINESE_ANIMALS = ["Ratte","Ochse","Tiger","Hase","Drache","Schlange","Pferd","Ziege","Affe","Hahn","Hund","Schwein"]; // Rat..Pig
+
+function getWesternSign(date){
+  const d = (typeof date === "string") ? parseISO(date) : date;
+  const m = d.getMonth()+1;
+  const day = d.getDate();
+
+  // helper to check ranges that may wrap over year end
+  const inRange = (mm,dd, sMM,sDD, eMM,eDD) => {
+    const val = mm*100+dd;
+    const start = sMM*100+sDD;
+    const end = eMM*100+eDD;
+    if (start <= end) return val >= start && val <= end;
+    return (val >= start) || (val <= end);
+  };
+
+  for (const s of WESTERN_SIGNS){
+    if (inRange(m, day, s.start[0], s.start[1], s.end[0], s.end[1])) return s;
+  }
+  return WESTERN_SIGNS[0];
+}
+
+function getChineseZodiac(date){
+  const d = (typeof date === "string") ? parseISO(date) : date;
+  let y = d.getFullYear();
+  const cnyISO = CHINESE_NEW_YEAR[y];
+  if (cnyISO){
+    const cny = parseISO(cnyISO);
+    if (d < cny) y = y - 1;
+  } else {
+    // fallback: approximate; works for most dates but can be off in Jan/Feb
+    if (d.getMonth() < 1) y = y - 1;
+  }
+
+  const baseYear = 2020; // 2020 = Rat
+  const idx = ((y - baseYear) % 12 + 12) % 12;
+  return { year: y, animal: CHINESE_ANIMALS[idx] };
+}
+
+function astroCompatibilityGrade(childSignName, parentSignName){
+  // Grade 1..6 (1 = best). Heuristic by elements.
+  const child = WESTERN_SIGNS.find(s=>s.name===childSignName);
+  const parent = WESTERN_SIGNS.find(s=>s.name===parentSignName);
+  if (!child || !parent) return null;
+  const ce = child.element;
+  const pe = parent.element;
+
+  if (ce === pe) return 1;
+  const compatible = (a,b)=> (a==="fire"&&b==="air") || (a==="air"&&b==="fire") || (a==="earth"&&b==="water") || (a==="water"&&b==="earth");
+  if (compatible(ce,pe)) return 2;
+
+  // next-best: semi-compatible (fire-earth, air-water)
+  const semi = (a,b)=> (a==="fire"&&b==="earth") || (a==="earth"&&b==="fire") || (a==="air"&&b==="water") || (a==="water"&&b==="air");
+  if (semi(ce,pe)) return 3;
+
+  // hardest: fire-water, earth-air
+  const hard = (a,b)=> (a==="fire"&&b==="water") || (a==="water"&&b==="fire") || (a==="earth"&&b==="air") || (a==="air"&&b==="earth");
+  if (hard(ce,pe)) return 5;
+  return 4;
+}
+
+function combinedParentGrade(childSignName, motherSign, fatherSign){
+  const gM = motherSign ? astroCompatibilityGrade(childSignName, motherSign) : null;
+  const gF = fatherSign ? astroCompatibilityGrade(childSignName, fatherSign) : null;
+  if (gM===null && gF===null) return { grade:null, detail:"" };
+  if (gM!==null && gF!==null){
+    const avg = Math.round((gM + gF) / 2);
+    return { grade: clamp(avg,1,6), detail:`M${gM}/V${gF}` };
+  }
+  const single = (gM!==null)?gM:gF;
+  const label = (gM!==null)?`M${gM}`:`V${gF}`;
+  return { grade: clamp(single,1,6), detail: label };
+}
+
+function computeETFromOvulation(ovuDate){
+  // ET ≈ Eisprung + 266 Tage (38 Wochen)
+  return addDays(ovuDate, 266);
+}
+
+// ---------- settings ----------
+function loadSettings(){
+  const s = loadJSON(KEY_SETTINGS, { cycleLen: 28, periodLen: 5, ovuDay: null, motherSign: "", fatherSign: "" });
+  return {
+    cycleLen: clamp(Number(s.cycleLen||28), 15, 60),
+    periodLen: clamp(Number(s.periodLen||5), 1, 14),
+    ovuDay: (s.ovuDay === null || s.ovuDay === "" || typeof s.ovuDay === "undefined") ? null : clamp(Number(s.ovuDay), 6, 50),
+    motherSign: String(s.motherSign||"").trim(),
+    fatherSign: String(s.fatherSign||"").trim(),
+  };
+}
+function saveSettings(s){ saveJSON(KEY_SETTINGS, s); }
+
+// ---------- bleeding log ----------
+function loadBleedDays(){
+  const arr = loadJSON(KEY_BLEED, []);
+  const set = new Set(arr.filter(Boolean));
+  return [...set].sort(); // ascending ISO
+}
+function saveBleedDays(days){ saveJSON(KEY_BLEED, days); }
+
+function addBleedDay(dateISO){
+  const days = loadBleedDays();
+  if (!days.includes(dateISO)) days.push(dateISO);
+  // auto-fill missing days within short gaps (<=2 days) to handle "forgotten days"
+  const filled = fillSmallGaps([...new Set(days)].sort());
+  saveBleedDays(filled);
+}
+function removeBleedDay(dateISO){
+  const days = loadBleedDays().filter(d => d !== dateISO);
+  saveBleedDays(days);
+}
+
+function fillSmallGaps(sortedISO){
+  // if we have 18 and 21, fill 19 and 20 (gap 3 -> missing 2)
+  const out = [];
+  for (let i=0;i<sortedISO.length;i++){
+    const cur = sortedISO[i];
+    out.push(cur);
+    const next = sortedISO[i+1];
+    if (!next) continue;
+    const a = parseISO(cur);
+    const b = parseISO(next);
+    const gap = diffDays(a,b);
+    if (gap >= 2 && gap <= 3){
+      // fill missing days between (gap=2 -> fill 1 day, gap=3 -> fill 2 days)
+      for (let k=1;k<gap;k++){
+        out.push(iso(addDays(a,k)));
+      }
+    }
+  }
+  return [...new Set(out)].sort();
+}
+
+function derivePeriodsFromBleed(daysISO){
+  // group consecutive days allowing 1-day gaps already filled; after fillSmallGaps it's contiguous.
+  if (!daysISO.length) return [];
+  const days = daysISO.map(parseISO).sort((a,b)=>a-b);
+
+  const periods = [];
+  let start = days[0];
+  let prev = days[0];
+
+  for (let i=1;i<days.length;i++){
+    const d = days[i];
+    const gap = diffDays(prev, d);
+    if (gap <= 1){
+      prev = d;
+      continue;
+    }
+    // end current
+    periods.push({ start: start, end: prev });
+    start = d;
+    prev = d;
+  }
+  periods.push({ start: start, end: prev });
+
+  // newest first
+  periods.sort((a,b)=>b.start - a.start);
+  return periods;
+}
+
+// ---------- notes/images ----------
+function loadNotesByDate(){ return loadJSON(KEY_NOTES, {}); }
+function saveNotesByDate(map){ saveJSON(KEY_NOTES, map); }
+function loadImages(){ return loadJSON(KEY_IMAGES, []); }
+function saveImages(arr){ saveJSON(KEY_IMAGES, arr); }
+
+function dayHasNotes(dateISO){
+  const notes = (loadNotesByDate()[dateISO] || []);
+  return notes.length > 0;
+}
+
+// ---------- cycle model & LH personalization ----------
+function findPositiveLHInWindow(notesByDate, cycleStart, cycleEnd){
+  const keys = Object.keys(notesByDate||{});
+  const inWindow = keys.filter(k => between(parseISO(k), cycleStart, cycleEnd));
+  const positives=[];
+  for (const dateISO of inWindow){
+    const notes = notesByDate[dateISO] || [];
+    const hasPos = notes.some(n => n && n.type==="LH" && String(n.result||"").toLowerCase()==="positiv");
+    if (hasPos) positives.push(dateISO);
+  }
+  positives.sort();
+  return positives[0] || null;
+}
+
+function findFirstNoteMatchInWindow(notesByDate, cycleStart, cycleEnd, predicate){
+  const keys = Object.keys(notesByDate||{});
+  const inWindow = keys.filter(k => between(parseISO(k), cycleStart, cycleEnd)).sort();
+  for (const dateISO of inWindow){
+    const notes = notesByDate[dateISO] || [];
+    for (const n of notes){
+      if (predicate(n)) return { dateISO, note: n };
+    }
+  }
+  return null;
+}
+
+function findMittelschmerzInWindow(notesByDate, cycleStart, cycleEnd){
+  return findFirstNoteMatchInWindow(notesByDate, cycleStart, cycleEnd, (n)=>n && n.type==="MITTELSCHMERZ");
+}
+
+function findCervixFadenziehendInWindow(notesByDate, cycleStart, cycleEnd){
+  return findFirstNoteMatchInWindow(notesByDate, cycleStart, cycleEnd, (n)=>{
+    if (!n) return false;
+    if (n.type !== "ZERVIX") return false;
+    const r = String(n.result||"").toLowerCase();
+    if (r === "fadenziehend") return true;
+    const t = String(n.text||"").toLowerCase();
+    return t.includes("fadenziehend");
+  });
+}
+
+function computePersonalOvulationOffset(periodsNewestFirst, notesByDate, fallbackOffset){
+  // use cycles where LH+ exists: ovulation = LH+1; offset = days from period start
+  const sorted = [...periodsNewestFirst].sort((a,b)=>a.start-b.start); // old->new
+  const offsets = [];
+
+  for (let i=0;i<sorted.length;i++){
+    const start = sorted[i].start;
+    const end = (i+1<sorted.length) ? addDays(sorted[i+1].start, -1) : addDays(start, 60); // wide window for last
+    const lhISO = findPositiveLHInWindow(notesByDate, start, end);
+    if (!lhISO) continue;
+    const ov = addDays(parseISO(lhISO), 1);
+    const off = diffDays(start, ov);
+    if (off>=5 && off<=50) offsets.push(off);
+  }
+  if (!offsets.length) return fallbackOffset;
+  return Math.round(offsets.reduce((s,x)=>s+x,0)/offsets.length);
+}
+
+function buildCalendarModel(periodsNewestFirst, forecastCycles=6){
+  const settings = loadSettings();
+  if (!periodsNewestFirst.length){
+    return { actualPeriods: [], forecastPeriods: [], fertileRanges: [], ovulationDaysISO: [], cycleLen: settings.cycleLen, periodLen: settings.periodLen, personalOvuOffset: (settings.ovuDay?settings.ovuDay-1:(settings.cycleLen-14)), latestStart: null };
+  }
+
+  const latestStart = periodsNewestFirst[0].start;
+  const notesByDate = loadNotesByDate();
+
+  // compute cycle length from last 12 period starts if possible
+  const starts = periodsNewestFirst.slice(0, 13).map(p=>p.start).sort((a,b)=>a-b);
+  const diffs = [];
+  for (let i=1;i<starts.length;i++){
+    const d = diffDays(starts[i-1], starts[i]);
+    if (d>=15 && d<=60) diffs.push(d);
+  }
+  const cycleLen = diffs.length ? Math.round(diffs.reduce((s,x)=>s+x,0)/diffs.length) : settings.cycleLen;
+  const periodLen = settings.periodLen; // baseline; actual comes from bleed groups
+
+  const fallbackOffset = settings.ovuDay ? (settings.ovuDay - 1) : (cycleLen - 14);
+  const personalOvuOffset = computePersonalOvulationOffset(periodsNewestFirst.slice(0,12), notesByDate, fallbackOffset);
+
+  // Actual periods from bleed groups
+  const actualPeriods = periodsNewestFirst.map(p => ({ start: p.start, end: p.end }));
+
+  const fertileRanges = [];
+  const ovulationDaysISO = [];
+
+  // current cycle ovulation: priority LH+ > Mittelschmerz > Zervix (fadenziehend) > Standard
+  const nextStart = periodsNewestFirst.length > 1 ? periodsNewestFirst[1].start : addDays(latestStart, cycleLen);
+  const currentOv = computeOvulationForCycle(latestStart, nextStart, { personalOvuOffset }, notesByDate);
+  ovulationDaysISO.push(iso(currentOv.ovuDate));
+  fertileRanges.push({ start: addDays(currentOv.ovuDate, -5), end: addDays(currentOv.ovuDate, 1) });
+
+  // Future cycles forecast
+  const forecastPeriods = [];
+  for (let k=1;k<=forecastCycles;k++){
+    const startK = addDays(latestStart, cycleLen * k);
+    const endK = addDays(startK, periodLen - 1);
+    forecastPeriods.push({ start: startK, end: endK });
+
+    const ovu = addDays(startK, personalOvuOffset);
+    ovulationDaysISO.push(iso(ovu));
+    fertileRanges.push({ start: addDays(ovu, -5), end: addDays(ovu, 1) });
+  }
+
+  return { actualPeriods, forecastPeriods, fertileRanges, ovulationDaysISO, cycleLen, periodLen, personalOvuOffset, latestStart, currentOvulation: currentOv };
+}
+
+// ---------- UI: views ----------
+function setView(name){
+  document.querySelectorAll(".view").forEach(v=>v.classList.add("hidden"));
+  document.getElementById(`view-${name}`).classList.remove("hidden");
+
+  document.querySelectorAll(".nav .btn").forEach(b=>b.classList.remove("primary"));
+  const active = document.querySelector(`.nav .btn[data-view='${name}']`);
+  if (active) active.classList.add("primary");
+
+  if (name==="calendar") rerenderCalendar();
+  if (name==="stats") rerenderStats();
+  if (name==="today") rerenderToday();
+  if (name==="settings") renderSettingsForm();
+}
+
+// ---------- TODAY ----------
+function rerenderToday(){
+  const todayISO = iso(new Date());
+  document.getElementById("bleedDate").value = todayISO;
+
+  const days = loadBleedDays();
+  const has = days.includes(todayISO);
+  const btn = document.getElementById("bleedTodayBtn");
+  btn.textContent = has ? "Heute Blutung: entfernen" : "Heute Blutung: hinzufügen";
+  btn.classList.toggle("danger", has);
+  btn.classList.toggle("primary", !has);
+
+  const periods = derivePeriodsFromBleed(days);
+  const list = document.getElementById("periodsList");
+  if (!periods.length){
+    list.innerHTML = '<p class="muted">Noch keine Blutungstage eingetragen.</p>';
+    return;
+  }
+  list.innerHTML = periods.slice(0, 12).map((p) => {
+    const len = diffDays(p.start, p.end) + 1;
+    return `
+      <div class="row">
+        <div>
+          <div class="strong">${formatDateDE(p.start)} – ${formatDateDE(p.end)}</div>
+          <div class="meta">Dauer: ${len} Tage</div>
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
+// ---------- CALENDAR ----------
+let viewDate = new Date();
+function startOfMonth(d){ return new Date(d.getFullYear(), d.getMonth(), 1); }
+function fmtMonth(d){ return d.toLocaleDateString("de-DE", { month:"long", year:"numeric" }); }
+
+function renderNoteIcon(btn){
+  // small note icon (SVG) — more visible than a dot
+  const svg = document.createElementNS("http://www.w3.org/2000/svg","svg");
+  svg.setAttribute("viewBox","0 0 24 24");
+  svg.classList.add("dayNoteIcon");
+  svg.innerHTML = `
+    <path fill="rgba(106,169,255,0.95)" d="M6 2h9l5 5v15a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"/>
+    <path fill="rgba(18,20,26,0.85)" d="M15 2v5h5z"/>
+    <path fill="rgba(18,20,26,0.65)" d="M7 10h10v2H7zm0 4h10v2H7zm0 4h7v2H7z"/>
+  `;
+  btn.appendChild(svg);
+}
+
+function rerenderCalendar(){
+  const days = loadBleedDays();
+  const periods = derivePeriodsFromBleed(days);
+  const model = buildCalendarModel(periods, 6);
+
+  document.getElementById("monthTitle").textContent = fmtMonth(viewDate);
+  const cal = document.getElementById("calendar");
+  const summary = document.getElementById("summary");
+  cal.innerHTML = "";
+
+  const weekdays=["Mo","Di","Mi","Do","Fr","Sa","So"];
+  weekdays.forEach(w=>{
+    const el=document.createElement("div");
+    el.className="cell head";
+    el.textContent=w;
+    cal.appendChild(el);
+  });
+
+  const monthStart = startOfMonth(viewDate);
+  const dow = (monthStart.getDay()+6)%7;
+  const gridStart = addDays(monthStart, -dow);
+
+  const inAny = (rangesArr, d) => rangesArr.some(r => between(d, r.start, r.end));
+
+  for (let i=0;i<42;i++){
+    const d = addDays(gridStart, i);
+    const dateISO = iso(d);
+    const dd = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+
+    const btn=document.createElement("button");
+    btn.type="button";
+    btn.className="cell day";
+    if (d.getMonth() !== viewDate.getMonth()) btn.classList.add("dim");
+
+    const label=document.createElement("div");
+    label.className="date";
+    label.textContent=d.getDate();
+    btn.appendChild(label);
+
+    if (periods.length){
+      const isActual = inAny(model.actualPeriods, dd);
+      if (isActual) btn.classList.add("bg-period");
+      if (!isActual && inAny(model.forecastPeriods, dd)) btn.classList.add("bg-predicted");
+      if (inAny(model.fertileRanges, dd)) btn.classList.add("bg-fertile");
+      if (model.ovulationDaysISO.includes(dateISO)) btn.classList.add("bg-ovu");
+    }
+
+    if (dayHasNotes(dateISO)) renderNoteIcon(btn);
+
+    btn.addEventListener("click", () => openNotes(dateISO));
+    cal.appendChild(btn);
+  }
+
+  if (!periods.length){
+    summary.innerHTML = '<p class="muted">Noch keine Blutungstage. Nutze „Heute“ oder trage rückwirkend ein.</p>';
+    return;
+  }
+
+  const nextStarts = model.forecastPeriods.map(r=>formatDateDE(r.start)).slice(0,6);
+  const settings = loadSettings();
+  const nextOvISOs = model.ovulationDaysISO.slice(0,6);
+  const nextOvBadges = nextOvISOs.map(d=>formatDateDE(d));
+
+  const pregnancyRows = nextOvISOs.map((dISO, idx)=>{
+    const ovuDate = parseISO(dISO);
+    const et = computeETFromOvulation(ovuDate);
+    const w = getWesternSign(et);
+    const cz = getChineseZodiac(et);
+    const g = combinedParentGrade(w.name, settings.motherSign, settings.fatherSign);
+    const adj = (w.adj||[]).slice(0,3).join(", ");
+    const gTxt = g.grade ? `${g.grade}${g.detail?` (${g.detail})`:""}` : "–";
+    return `
+      <tr>
+        <td style="padding:8px;border-bottom:1px solid rgba(255,255,255,0.08);">${idx===0?"(aktuell)":""} ${formatDateDE(ovuDate)}</td>
+        <td style="padding:8px;border-bottom:1px solid rgba(255,255,255,0.08);">${formatDateDE(et)}</td>
+        <td style="padding:8px;border-bottom:1px solid rgba(255,255,255,0.08);">${escapeHtml(w.name)}${adj?` <span class=\"muted\" style=\"font-size:12px;\">(${escapeHtml(adj)})</span>`:""}</td>
+        <td style="padding:8px;border-bottom:1px solid rgba(255,255,255,0.08);">${escapeHtml(cz.animal)}</td>
+        <td style="padding:8px;border-bottom:1px solid rgba(255,255,255,0.08);">${gTxt}</td>
+      </tr>
+    `;
+  }).join("");
+  const ovReason = model.currentOvulation?.reasonText ? ` • ${escapeHtml(model.currentOvulation.reasonText)}` : "";
+  summary.innerHTML = `
+    <div class="grid2">
+      <div class="card inner"><div class="muted">Zyklus (Ø / Standard)</div><div class="big">${model.cycleLen} Tage</div></div>
+      <div class="card inner"><div class="muted">Periode (Standard)</div><div class="big">${model.periodLen} Tage</div></div>
+      <div class="card inner"><div class="muted">Eisprung-Offset (gelernt)</div><div class="big">Tag ${model.personalOvuOffset+1}</div></div>
+      <div class="card inner"><div class="muted">Eisprung (≈, aktuell)</div><div class="big">${formatDateDE(model.ovulationDaysISO[0])}${ovReason}</div></div>
+      <div class="card inner" style="grid-column:1/-1;">
+        <div class="muted">Nächste 6 Periodenstarts (≈)</div>
+        <div class="badges">${nextStarts.map(x=>`<span class="badge">${x}</span>`).join("")}</div>
+      </div>
+      <div class="card inner" style="grid-column:1/-1;">
+        <div class="muted">Nächste 6 Eisprünge (≈)</div>
+        <div class="badges">${nextOvBadges.map(x=>`<span class="badge">${x}</span>`).join("")}</div>
+      </div>
+      <div class="card inner" style="grid-column:1/-1;">
+        <div class="muted">Wenn Schwangerschaft im jeweiligen Zyklus (ET & Sternzeichen nach Eisprung)</div>
+        <div style="overflow:auto;margin-top:6px;">
+          <table style="width:100%;border-collapse:collapse;min-width:640px;">
+            <thead>
+              <tr>
+                <th style="text-align:left;padding:8px;border-bottom:1px solid rgba(255,255,255,0.10);">Eisprung</th>
+                <th style="text-align:left;padding:8px;border-bottom:1px solid rgba(255,255,255,0.10);">ET (≈)</th>
+                <th style="text-align:left;padding:8px;border-bottom:1px solid rgba(255,255,255,0.10);">Sternzeichen</th>
+                <th style="text-align:left;padding:8px;border-bottom:1px solid rgba(255,255,255,0.10);">Chinesisch</th>
+                <th style="text-align:left;padding:8px;border-bottom:1px solid rgba(255,255,255,0.10);">Match (1–6)</th>
+              </tr>
+            </thead>
+            <tbody>${pregnancyRows}</tbody>
+          </table>
+        </div>
+        <div class="muted" style="margin-top:8px;font-size:12px;">
+          Match ist eine einfache Element-Heuristik (Feuer/Luft & Erde/Wasser tendenziell besser). Für den Match-Wert bitte Mutter/Vater-Sternzeichen in den Einstellungen setzen.
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// ---------- STATS ----------
+function computeOvulationForCycle(periodStart, nextStart, model, notesByDate){
+  const cycleEnd = addDays(nextStart, -1);
+
+  // 1) LH+ (stärker als alles andere): Eisprung ≈ LH+1
+  const lhISO = findPositiveLHInWindow(notesByDate, periodStart, cycleEnd);
+  if (lhISO){
+    const ovuDate = addDays(parseISO(lhISO), 1);
+    const zt = diffDays(periodStart, ovuDate) + 1;
+    return { ovuDate, zt, reasonCode:"LH+", reasonText:`LH+ (${formatDateDE(lhISO)}) → +1`, note: null };
+  }
+
+  // 2) Mittelschmerz: Eisprung ≈ gleicher Tag
+  const ms = findMittelschmerzInWindow(notesByDate, periodStart, cycleEnd);
+  if (ms){
+    const ovuDate = parseISO(ms.dateISO);
+    const zt = diffDays(periodStart, ovuDate) + 1;
+    const side = ms.note?.side ? ` (${ms.note.side})` : "";
+    const extra = ms.note?.text ? `: ${shortText(ms.note.text, 36)}` : "";
+    return { ovuDate, zt, reasonCode:"MITTELSCHMERZ", reasonText:`Mittelschmerz${side}${extra}`, note: ms.note };
+  }
+
+  // 3) Zervixschleim (fadenziehend): nachrangig
+  const cx = findCervixFadenziehendInWindow(notesByDate, periodStart, cycleEnd);
+  if (cx){
+    const ovuDate = parseISO(cx.dateISO);
+    const zt = diffDays(periodStart, ovuDate) + 1;
+    const extra = cx.note?.text ? `: ${shortText(cx.note.text, 36)}` : "";
+    return { ovuDate, zt, reasonCode:"ZERVIX", reasonText:`Zervix (fadenziehend)${extra}`, note: cx.note };
+  }
+
+  // 4) Fallback: gelernt/Standard
+  const ovuDate = addDays(periodStart, model.personalOvuOffset);
+  const zt = diffDays(periodStart, ovuDate) + 1;
+  return { ovuDate, zt, reasonCode:"STANDARD", reasonText:`Standard (Offset Tag ${model.personalOvuOffset+1})`, note: null };
+}
+
+function rerenderStats(){
+  const days = loadBleedDays();
+  const periods = derivePeriodsFromBleed(days);
+  const settings = loadSettings();
+
+  const statsSummary = document.getElementById("statsSummary");
+  const last12 = document.getElementById("last12");
+
+  if (!periods.length){
+    statsSummary.innerHTML = '<p class="muted">Keine Daten.</p>';
+    last12.innerHTML = '<p class="muted">Keine Zyklen vorhanden.</p>';
+    return;
+  }
+
+  // cycle length average from last starts
+  const starts = periods.slice(0, 13).map(p=>p.start).sort((a,b)=>a-b);
+  const diffs=[];
+  for (let i=1;i<starts.length;i++){
+    const d = diffDays(starts[i-1], starts[i]);
+    if (d>=15 && d<=60) diffs.push(d);
+  }
+  const avgCycle = diffs.length ? Math.round(diffs.reduce((s,x)=>s+x,0)/diffs.length) : settings.cycleLen;
+
+  // period length average from bleed-derived periods
+  const lens = periods.slice(0,12).map(p => diffDays(p.start, p.end)+1);
+  const avgPeriod = Math.round(lens.reduce((s,x)=>s+x,0)/lens.length);
+
+  // simple variability as std dev of diffs
+  const mean = diffs.length ? (diffs.reduce((s,x)=>s+x,0)/diffs.length) : avgCycle;
+  const variance = diffs.length ? diffs.reduce((s,x)=>s+(x-mean)*(x-mean),0)/diffs.length : 0;
+  const stdCycle = Math.sqrt(Math.max(0, variance));
+  const variability = stdCycle < 1.5 ? "sehr stabil" : stdCycle < 3.5 ? "relativ stabil" : stdCycle < 6 ? "wechselhaft" : "stark wechselhaft";
+
+  // build model for ovulation offset
+  const model = buildCalendarModel(periods, 6);
+  const notesByDate = loadNotesByDate();
+
+  statsSummary.innerHTML = `
+    <div class="grid2">
+      <div class="card inner"><div class="muted">Ø Zyklus</div><div class="big">${avgCycle} Tage</div></div>
+      <div class="card inner"><div class="muted">Ø Periode</div><div class="big">${avgPeriod} Tage</div></div>
+      <div class="card inner"><div class="muted">Schwankung (σ)</div><div class="big">${stdCycle.toFixed(1)} Tage</div></div>
+      <div class="card inner"><div class="muted">Einschätzung</div><div class="big">${variability}</div></div>
+      <div class="card inner" style="grid-column:1/-1;"><div class="muted">Eisprung-Offset (gelernt)</div><div class="big">Tag ${model.personalOvuOffset+1}</div></div>
+    </div>
+  `;
+
+  // table last 12 cycles: start, bleed length, cycle length, ovulation day (ZT) + date
+  const cycles = periods.slice(0, 12).sort((a,b)=>a.start-b.start); // old->new
+  const rows = [];
+  for (let i=0;i<cycles.length;i++){
+    const cur = cycles[i];
+    const next = (i+1 < cycles.length) ? cycles[i+1] : { start: addDays(cur.start, avgCycle) };
+
+    const cycleLen = diffDays(cur.start, next.start);
+    const bleedLen = diffDays(cur.start, cur.end) + 1;
+
+    const ov = computeOvulationForCycle(cur.start, next.start, model, notesByDate);
+    rows.push(`
+      <tr>
+        <td style="padding:8px;border-bottom:1px solid rgba(255,255,255,0.08);">${formatDateDE(cur.start)}</td>
+        <td style="padding:8px;border-bottom:1px solid rgba(255,255,255,0.08);">${bleedLen}</td>
+        <td style="padding:8px;border-bottom:1px solid rgba(255,255,255,0.08);">${(cycleLen>=15 && cycleLen<=60)?cycleLen:"–"}</td>
+        <td style="padding:8px;border-bottom:1px solid rgba(255,255,255,0.08);">ZT ${ov.zt} (${formatDateDE(ov.ovuDate)})${ov.reasonText ? " • "+escapeHtml(ov.reasonText) : ""}</td>
+      </tr>
+    `);
+  }
+
+  last12.innerHTML = `
+    <div style="overflow:auto;">
+      <table style="width:100%;border-collapse:collapse;">
+        <thead>
+          <tr>
+            <th style="text-align:left;padding:8px;border-bottom:1px solid rgba(255,255,255,0.10);">Start</th>
+            <th style="text-align:left;padding:8px;border-bottom:1px solid rgba(255,255,255,0.10);">Periode (Tage)</th>
+            <th style="text-align:left;padding:8px;border-bottom:1px solid rgba(255,255,255,0.10);">Zyklus (Tage)</th>
+            <th style="text-align:left;padding:8px;border-bottom:1px solid rgba(255,255,255,0.10);">Eisprung (Zyklustag)</th>
+          </tr>
+        </thead>
+        <tbody>${rows.join("")}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+// ---------- NOTES MODAL ----------
+let currentNotesDate = null;
+function labelForType(t){
+  return ({ "LH":"LH-Test","HCG":"Schwangerschaftstest","MITTELSCHMERZ":"Mittelschmerz","ZERVIX":"Zervixschleim","SCHMERZ":"Schmerz","SYMPTOM":"Symptom / Notiz" }[t]||t);
+}
+function openNotes(dateISO){
+  currentNotesDate = dateISO;
+  document.getElementById("notesTitle").textContent = formatDateDE(dateISO);
+  document.getElementById("notesModal").classList.remove("hidden");
+  renderNotesList();
+}
+function closeNotes(){
+  document.getElementById("notesModal").classList.add("hidden");
+  currentNotesDate = null;
+}
+
+function renderNotesList(){
+  const list = document.getElementById("notesList");
+  const notesByDate = loadNotesByDate();
+  const notes = (notesByDate[currentNotesDate] || []).slice().sort((a,b)=>(a.createdAt<b.createdAt?1:-1));
+  const images = loadImages();
+  const imgById = new Map(images.map(i=>[i.id, i]));
+
+  if (!notes.length){ list.innerHTML = '<p class="muted">Keine Notizen für diesen Tag.</p>'; return; }
+
+  list.innerHTML = notes.map(n=>{
+    const badges=[];
+    if (n.result) badges.push(`Ergebnis: ${n.result}`);
+    if (n.side) badges.push(`Seite: ${n.side}`);
+    if (typeof n.intensity==="number" && n.intensity>0) badges.push(`Intensität: ${n.intensity}/10`);
+    if (n.imageId) badges.push("Foto");
+
+    const img = n.imageId ? imgById.get(n.imageId) : null;
+    const imgHtml = img ? `
+      <div class="noteImageRow">
+        <img class="noteThumb" src="${img.dataUrl}" alt="Foto" loading="lazy" />
+        <div class="noteImageMeta">
+          <div class="muted" style="font-size:12px;">${escapeHtml(img.kind||"Foto")} • ${formatDateDE(img.createdAt.slice(0,10))}</div>
+          <button class="btn small" type="button" data-open-image="${img.id}">Bild öffnen</button>
+        </div>
+      </div>
+    ` : "";
+
+    return `
+      <div class="row">
+        <div style="flex:1;">
+          <div class="strong">${escapeHtml(labelForType(n.type))}</div>
+          ${n.text?`<div style="margin-top:6px;">${escapeHtml(n.text)}</div>`:""}
+          ${badges.length?`<div class="badges">${badges.map(b=>`<span class="badge">${escapeHtml(b)}</span>`).join("")}</div>`:""}
+          ${imgHtml}
+        </div>
+        <button class="btn small" type="button" data-del-note="${n.id}">Löschen</button>
+      </div>
+    `;
+  }).join("");
+
+  list.querySelectorAll("[data-del-note]").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      const id = btn.getAttribute("data-del-note");
+      const notesByDate = loadNotesByDate();
+      notesByDate[currentNotesDate] = (notesByDate[currentNotesDate]||[]).filter(x=>x.id!==id);
+      saveNotesByDate(notesByDate);
+      renderNotesList();
+      rerenderCalendar();
+      rerenderStats();
+    });
+  });
+
+  list.querySelectorAll("[data-open-image]").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      const id = btn.getAttribute("data-open-image");
+      const img = imgById.get(id);
+      if (!img) return;
+      window.open(img.dataUrl, "_blank", "noopener,noreferrer");
+    });
+  });
+}
+
+// ---------- CSV Import/Export ----------
+function csvEscape(v){
+  const s = String(v ?? "");
+  if (/[\n\r",]/.test(s)) return '"' + s.replace(/"/g,'""') + '"';
+  return s;
+}
+
+function toCSV(rows){
+  return rows.map(r => r.map(csvEscape).join(",")).join("\n");
+}
+
+function parseCSV(text){
+  const rows = [];
+  let row = [];
+  let cur = "";
+  let inQuotes = false;
+  for (let i=0;i<text.length;i++){
+    const ch = text[i];
+    const next = text[i+1];
+    if (inQuotes){
+      if (ch === '"' && next === '"') { cur += '"'; i++; continue; }
+      if (ch === '"') { inQuotes = false; continue; }
+      cur += ch; continue;
+    }
+    if (ch === '"') { inQuotes = true; continue; }
+    if (ch === ',') { row.push(cur); cur = ""; continue; }
+    if (ch === '\n') { row.push(cur); rows.push(row); row=[]; cur=""; continue; }
+    if (ch === '\r') { continue; }
+    cur += ch;
+  }
+  row.push(cur);
+  rows.push(row);
+  return rows.filter(r => r.some(c => String(c||"").trim()!==""));
+}
+
+function exportAllToCSV(){
+  const rows = [[
+    "record_type","date","id","type","result","side","intensity","text","imageId","imageKind","imageDataUrl","createdAt","cycleLen","periodLen","ovuDay","motherSign","fatherSign"
+  ]];
+
+  const s = loadSettings();
+  rows.push(["SETTINGS","", "", "", "", "", "", "", "", "", "", "", String(s.cycleLen), String(s.periodLen), String(s.ovuDay ?? ""), String(s.motherSign||""), String(s.fatherSign||"")]);
+
+  for (const d of loadBleedDays()){
+    rows.push(["BLEED", d, "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""]);
+  }
+
+  const notesByDate = loadNotesByDate();
+  for (const dateISO of Object.keys(notesByDate||{}).sort()){
+    for (const n of (notesByDate[dateISO]||[])){
+      rows.push([
+        "NOTE",
+        dateISO,
+        n.id||"",
+        n.type||"",
+        n.result||"",
+        n.side||"",
+        (typeof n.intensity==="number"?String(n.intensity):""),
+        n.text||"",
+        n.imageId||"",
+        "",
+        "",
+        n.createdAt||"",
+        "","","","",""
+      ]);
+    }
+  }
+
+  for (const img of loadImages()){
+    rows.push([
+      "IMAGE",
+      img.createdAt ? img.createdAt.slice(0,10) : "",
+      img.id||"",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      img.kind||"",
+      img.dataUrl||"",
+      img.createdAt||"",
+      "","","","",""
+    ]);
+  }
+
+  const csv = toCSV(rows);
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `periodentracker_export_${iso(new Date())}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  URL.revokeObjectURL(a.href);
+  document.body.removeChild(a);
+}
+
+async function importAllFromCSV(file, replaceExisting=false){
+  const text = await file.text();
+  const rows = parseCSV(text);
+  if (!rows.length) throw new Error("Leere Datei");
+  const header = rows[0].map(h => String(h||"").trim());
+  const idx = (name) => header.indexOf(name);
+  const ri = {
+    record_type: idx("record_type"),
+    date: idx("date"),
+    id: idx("id"),
+    type: idx("type"),
+    result: idx("result"),
+    side: idx("side"),
+    intensity: idx("intensity"),
+    text: idx("text"),
+    imageId: idx("imageId"),
+    imageKind: idx("imageKind"),
+    imageDataUrl: idx("imageDataUrl"),
+    createdAt: idx("createdAt"),
+    cycleLen: idx("cycleLen"),
+    periodLen: idx("periodLen"),
+    ovuDay: idx("ovuDay"),
+    motherSign: idx("motherSign"),
+    fatherSign: idx("fatherSign"),
+  };
+
+  if (ri.record_type < 0) throw new Error("CSV-Format nicht erkannt (record_type fehlt)");
+
+  if (replaceExisting){
+    localStorage.removeItem(KEY_BLEED);
+    localStorage.removeItem(KEY_NOTES);
+    localStorage.removeItem(KEY_IMAGES);
+    localStorage.removeItem(KEY_SETTINGS);
+  }
+
+  // existing
+  const bleed = new Set(loadBleedDays());
+  const notesByDate = loadNotesByDate();
+  const images = loadImages();
+  const imageIds = new Set(images.map(i=>i.id));
+  const noteIds = new Set(Object.values(notesByDate).flat().map(n=>n.id));
+
+  for (let r=1;r<rows.length;r++){
+    const row = rows[r];
+    const rt = String(row[ri.record_type]||"").trim();
+    if (!rt) continue;
+
+    if (rt === "SETTINGS"){
+      const cycleLen = clamp(Number(row[ri.cycleLen]||28), 15, 60);
+      const periodLen = clamp(Number(row[ri.periodLen]||5), 1, 14);
+      const ovuRaw = row[ri.ovuDay];
+      const ovuDay = (ovuRaw === "" || ovuRaw === null || typeof ovuRaw === "undefined") ? null : clamp(Number(ovuRaw), 6, 50);
+      const motherSign = ri.motherSign >= 0 ? String(row[ri.motherSign]||"").trim() : "";
+      const fatherSign = ri.fatherSign >= 0 ? String(row[ri.fatherSign]||"").trim() : "";
+      saveSettings({ cycleLen, periodLen, ovuDay, motherSign, fatherSign });
+      continue;
+    }
+
+    if (rt === "BLEED"){
+      const d = String(row[ri.date]||"").trim();
+      if (d) bleed.add(d);
+      continue;
+    }
+
+    if (rt === "IMAGE"){
+      const id = String(row[ri.id]||"").trim() || uid();
+      if (imageIds.has(id)) continue;
+      const kind = String(row[ri.imageKind]||"").trim() || "unknown";
+      const dataUrl = String(row[ri.imageDataUrl]||"").trim();
+      const createdAt = String(row[ri.createdAt]||new Date().toISOString());
+      if (!dataUrl) continue;
+      images.push({ id, kind, dataUrl, createdAt });
+      imageIds.add(id);
+      continue;
+    }
+
+    if (rt === "NOTE"){
+      const dateISO = String(row[ri.date]||"").trim();
+      if (!dateISO) continue;
+      const id = String(row[ri.id]||"").trim() || uid();
+      if (noteIds.has(id)) continue;
+      const note = {
+        id,
+        type: String(row[ri.type]||"").trim() || "SYMPTOM",
+        result: String(row[ri.result]||"").trim() || null,
+        side: String(row[ri.side]||"").trim() || null,
+        intensity: clamp(Number(row[ri.intensity]||0), 0, 10),
+        text: String(row[ri.text]||"").trim() || null,
+        imageId: String(row[ri.imageId]||"").trim() || null,
+        createdAt: String(row[ri.createdAt]||new Date().toISOString()),
+      };
+      notesByDate[dateISO] = notesByDate[dateISO] || [];
+      notesByDate[dateISO].push(note);
+      noteIds.add(id);
+      continue;
+    }
+  }
+
+  const filled = fillSmallGaps([...bleed].sort());
+  saveBleedDays(filled);
+  saveNotesByDate(notesByDate);
+  saveImages(images);
+}
+
+async function capturePhoto(kind="unknown"){
+  const input=document.createElement("input");
+  input.type="file"; input.accept="image/*"; input.capture="environment";
+  input.style.display="none"; document.body.appendChild(input);
+
+  const file = await new Promise(resolve=>{
+    input.addEventListener("change", ()=>resolve(input.files?.[0]||null), { once:true });
+    input.click();
+  });
+
+  document.body.removeChild(input);
+  if (!file) return null;
+
+  const dataUrl = await new Promise((resolve,reject)=>{
+    const r=new FileReader();
+    r.onload=()=>resolve(String(r.result));
+    r.onerror=reject;
+    r.readAsDataURL(file);
+  });
+
+  const images=loadImages();
+  const item={ id: uid(), createdAt: new Date().toISOString(), kind, dataUrl };
+  images.push(item);
+  saveImages(images);
+  return item.id;
+}
+
+// ---------- SETTINGS UI ----------
+function renderSettingsForm(){
+  const s = loadSettings();
+  document.getElementById("setCycleLen").value = s.cycleLen;
+  document.getElementById("setPeriodLen").value = s.periodLen;
+  document.getElementById("setOvuDay").value = s.ovuDay ?? "";
+  const m = document.getElementById("setMotherSign");
+  const f = document.getElementById("setFatherSign");
+  if (m) m.value = s.motherSign || "";
+  if (f) f.value = s.fatherSign || "";
+}
+
+// ---------- init ----------
+function init(){
+  const todayISO = iso(new Date());
+  document.getElementById("bleedDate").value = todayISO;
+
+  // nav
+  document.querySelectorAll(".nav .btn").forEach(btn=>{
+    btn.addEventListener("click", ()=>setView(btn.getAttribute("data-view")));
+  });
+
+  // today buttons
+  document.getElementById("bleedTodayBtn").addEventListener("click", ()=>{
+    const t = iso(new Date());
+    const days = loadBleedDays();
+    if (days.includes(t)) removeBleedDay(t);
+    else addBleedDay(t);
+    rerenderToday(); rerenderCalendar(); rerenderStats();
+  });
+
+  document.getElementById("bleedAddBtn").addEventListener("click", ()=>{
+    const d = document.getElementById("bleedDate").value;
+    if (!d) return;
+    addBleedDay(d);
+    rerenderToday(); rerenderCalendar(); rerenderStats();
+  });
+
+  // calendar month
+  document.getElementById("prevBtn").addEventListener("click", ()=>{
+    viewDate = new Date(viewDate.getFullYear(), viewDate.getMonth()-1, 1);
+    rerenderCalendar();
+  });
+  document.getElementById("nextBtn").addEventListener("click", ()=>{
+    viewDate = new Date(viewDate.getFullYear(), viewDate.getMonth()+1, 1);
+    rerenderCalendar();
+  });
+
+  // notes modal close
+  document.querySelector("#notesModal [data-close='1']").addEventListener("click", closeNotes);
+  document.getElementById("notesClose").addEventListener("click", closeNotes);
+
+  // note save
+  document.getElementById("noteForm").addEventListener("submit", (ev)=>{
+    ev.preventDefault();
+    if (!currentNotesDate) return;
+
+    const type = document.getElementById("noteType").value;
+    const result = document.getElementById("noteResult").value;
+    const side = document.getElementById("noteSide").value;
+    const intensity = clamp(Number(document.getElementById("noteIntensity").value||0), 0, 10);
+    const text = (document.getElementById("noteText").value||"").trim();
+    const imageId = document.getElementById("noteImageId").value || "";
+
+    const note = { id: uid(), type, result: result||null, side: side||null, intensity, text: text||null, imageId: imageId||null, createdAt: new Date().toISOString() };
+
+    const notesByDate = loadNotesByDate();
+    notesByDate[currentNotesDate] = notesByDate[currentNotesDate] || [];
+    notesByDate[currentNotesDate].push(note);
+    saveNotesByDate(notesByDate);
+
+    ev.target.reset();
+    document.getElementById("noteIntensity").value = 0;
+    document.getElementById("noteImageId").value = "";
+
+    renderNotesList();
+    rerenderCalendar();
+    rerenderStats();
+  });
+
+  document.getElementById("photoBtn").addEventListener("click", async ()=>{
+    if (!currentNotesDate) return;
+    const type = document.getElementById("noteType").value;
+    const kind = type==="LH" ? "LH" : (type==="HCG" ? "HCG" : "unknown");
+    const imageId = await capturePhoto(kind);
+    if (imageId){
+      document.getElementById("noteImageId").value = imageId;
+      alert("Foto gespeichert. Es wird mit der nächsten Notiz verknüpft.");
+    }
+  });
+
+  // settings form
+  document.getElementById("settingsForm").addEventListener("submit", (ev)=>{
+    ev.preventDefault();
+    const cycleLen = clamp(Number(document.getElementById("setCycleLen").value||28), 15, 60);
+    const periodLen = clamp(Number(document.getElementById("setPeriodLen").value||5), 1, 14);
+    const ovuRaw = document.getElementById("setOvuDay").value;
+    const ovuDay = (ovuRaw === "" || ovuRaw === null) ? null : clamp(Number(ovuRaw), 6, 50);
+    const motherSign = String(document.getElementById("setMotherSign")?.value||"").trim();
+    const fatherSign = String(document.getElementById("setFatherSign")?.value||"").trim();
+    saveSettings({ cycleLen, periodLen, ovuDay, motherSign, fatherSign });
+    alert("Einstellungen gespeichert.");
+    rerenderCalendar(); rerenderStats();
+  });
+
+  // CSV export/import
+  document.getElementById("exportCsvBtn")?.addEventListener("click", ()=>{
+    exportAllToCSV();
+  });
+
+  document.getElementById("importCsvFile")?.addEventListener("change", async (ev)=>{
+    const file = ev.target.files?.[0] || null;
+    if (!file) return;
+    try{
+      const replace = !!document.getElementById("importReplace")?.checked;
+      await importAllFromCSV(file, replace);
+      alert("Import abgeschlossen.");
+      ev.target.value = "";
+      rerenderToday(); rerenderCalendar(); rerenderStats();
+    }catch(e){
+      console.error(e);
+      alert("Import fehlgeschlagen: " + (e?.message || String(e)));
+      ev.target.value = "";
+    }
+  });
+
+  document.getElementById("resetDataBtn").addEventListener("click", ()=>{
+    if (!confirm("Wirklich ALLE Daten löschen (Blutungstage/Notizen/Bilder/Einstellungen)?")) return;
+    localStorage.removeItem(KEY_BLEED);
+    localStorage.removeItem(KEY_NOTES);
+    localStorage.removeItem(KEY_IMAGES);
+    localStorage.removeItem(KEY_SETTINGS);
+    rerenderToday(); rerenderCalendar(); rerenderStats();
+  });
+
+  // initial
+  rerenderToday();
+  rerenderCalendar();
+  rerenderStats();
+  setView("today");
+}
+
+document.addEventListener("DOMContentLoaded", init);

@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Periodentracker</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <h1>Periodentracker</h1>
+    <nav class="nav">
+      <button class="btn" data-view="today">Heute</button>
+      <button class="btn" data-view="calendar">Kalender</button>
+      <button class="btn" data-view="stats">Statistiken</button>
+      <button class="btn" data-view="settings">Einstellungen</button>
+    </nav>
+  </header>
+
+  <main class="container">
+    <!-- TODAY / QUICK LOG -->
+    <section class="card view" id="view-today">
+      <h2>Heute</h2>
+      <p class="muted">Schnell-Logging: „Heute Blutung“ und Notizen. Du kannst auch rückwirkend eintragen.</p>
+
+      <div class="grid2">
+        <button class="btn primary" id="bleedTodayBtn" type="button">Heute Blutung: hinzufügen</button>
+
+        <div class="card inner">
+          <div class="muted">Rückwirkend</div>
+          <div class="grid2" style="margin-top:8px;">
+            <input type="date" id="bleedDate" />
+            <button class="btn" id="bleedAddBtn" type="button">Blutung eintragen</button>
+          </div>
+          <div class="muted" style="font-size:12px;margin-top:6px;">
+            Tipp: Wenn du z. B. am 18. und 21. einträgst, werden fehlende Tage dazwischen automatisch ergänzt.
+          </div>
+        </div>
+      </div>
+
+      <h3 style="margin-top:14px;">Letzte Perioden (automatisch erkannt)</h3>
+      <div id="periodsList" class="list"></div>
+
+      <div class="muted" style="margin-top:12px;font-size:12px;">
+        Hinweis: Du kannst weiterhin Notizen (LH, Schmerz etc.) pro Tag im Kalender hinzufügen.
+      </div>
+    </section>
+
+    <!-- CALENDAR -->
+    <section class="card view hidden" id="view-calendar">
+      <div class="monthbar">
+        <button class="btn" id="prevBtn" type="button">‹</button>
+        <h2 id="monthTitle" class="center"></h2>
+        <button class="btn" id="nextBtn" type="button">›</button>
+      </div>
+
+      <div class="legend">
+        <span class="pill period">Periode (aus Blutung)</span>
+        <span class="pill fertile">Fruchtbar (≈)</span>
+        <span class="pill ovu">Eisprung (≈)</span>
+        <span class="pill predicted">Nächste Perioden (≈, 6 Zyklen)</span>
+      </div>
+
+      <div class="calendar" id="calendar"></div>
+      <div class="summary" id="summary"></div>
+    </section>
+
+    <!-- STATS -->
+    <section class="card view hidden" id="view-stats">
+      <h2>Statistiken</h2>
+      <div id="statsSummary"></div>
+
+      <h3 style="margin-top:14px;">Letzte 12 Zyklen inkl. Eisprung-Zyklustag</h3>
+      <div id="last12"></div>
+
+      <p class="muted" style="margin-top:12px;">
+        Hinweis: Eisprung/Fruchtbarkeit sind Näherungen. LH-positiv wird berücksichtigt (Eisprung ≈ LH+1 Tag).
+      </p>
+    </section>
+
+    <!-- SETTINGS -->
+    <section class="card view hidden" id="view-settings">
+      <h2>Einstellungen</h2>
+      <p class="muted">Diese Werte werden als Standard genutzt (du musst nicht jedes Mal Zykluslänge angeben).</p>
+
+      <form id="settingsForm" class="form">
+        <div class="grid2">
+          <label>Standard Zykluslänge (Tage)
+            <input type="number" id="setCycleLen" min="15" max="60" value="28" />
+          </label>
+          <label>Standard Periodenlänge (Tage)
+            <input type="number" id="setPeriodLen" min="1" max="14" value="5" />
+          </label>
+        </div>
+
+        <label>Standard Eisprungtag (Zyklustag, optional)
+          <input type="number" id="setOvuDay" min="6" max="50" placeholder="z. B. 23" />
+        </label>
+
+        <div class="grid2">
+          <label>Mutter Sternzeichen (optional)
+            <select id="setMotherSign">
+              <option value="">–</option>
+              <option value="Widder">Widder</option>
+              <option value="Stier">Stier</option>
+              <option value="Zwillinge">Zwillinge</option>
+              <option value="Krebs">Krebs</option>
+              <option value="Löwe">Löwe</option>
+              <option value="Jungfrau">Jungfrau</option>
+              <option value="Waage">Waage</option>
+              <option value="Skorpion">Skorpion</option>
+              <option value="Schütze">Schütze</option>
+              <option value="Steinbock">Steinbock</option>
+              <option value="Wassermann">Wassermann</option>
+              <option value="Fische">Fische</option>
+            </select>
+          </label>
+          <label>Vater Sternzeichen (optional)
+            <select id="setFatherSign">
+              <option value="">–</option>
+              <option value="Widder">Widder</option>
+              <option value="Stier">Stier</option>
+              <option value="Zwillinge">Zwillinge</option>
+              <option value="Krebs">Krebs</option>
+              <option value="Löwe">Löwe</option>
+              <option value="Jungfrau">Jungfrau</option>
+              <option value="Waage">Waage</option>
+              <option value="Skorpion">Skorpion</option>
+              <option value="Schütze">Schütze</option>
+              <option value="Steinbock">Steinbock</option>
+              <option value="Wassermann">Wassermann</option>
+              <option value="Fische">Fische</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="grid2">
+          <button class="btn primary" type="submit">Speichern</button>
+          <button class="btn danger" type="button" id="resetDataBtn">Alle Daten löschen</button>
+        </div>
+      </form>
+
+      <div class="card inner" style="margin-top:12px;">
+        <div class="strong">Daten (CSV)</div>
+        <p class="muted" style="margin:6px 0 10px;font-size:12px;">
+          Export/Import umfasst Blutungstage, Notizen, Fotos und Einstellungen.
+        </p>
+
+        <div class="grid2">
+          <button class="btn" type="button" id="exportCsvBtn">CSV exportieren</button>
+          <label style="gap:6px;">
+            <span class="muted" style="font-size:12px;">CSV importieren</span>
+            <input type="file" id="importCsvFile" accept=".csv,text/csv" />
+          </label>
+        </div>
+
+        <label class="inlineCheck">
+          <input type="checkbox" id="importReplace" />
+          Beim Import vorhandene Daten ersetzen (statt zusammenführen)
+        </label>
+
+        <div class="muted" style="margin-top:8px;font-size:12px;">
+          Tipp: Wenn du nur sichern willst, nutze Export. Beim Import werden doppelte IDs automatisch übersprungen.
+        </div>
+      </div>
+
+      <div class="muted" style="margin-top:12px;font-size:12px;">
+        „Eisprungtag“ wird nur genutzt, wenn noch keine LH-positiv Daten vorhanden sind.
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <small class="muted">Datenschutz: Daten bleiben auf deinem Gerät. Keine Cloud, kein Account.</small>
+  </footer>
+
+  <!-- Notes Modal -->
+  <div id="notesModal" class="modal hidden" aria-hidden="true">
+    <div class="modalBackdrop" data-close="1"></div>
+    <div class="modalCard" role="dialog" aria-modal="true">
+      <div class="modalHeader">
+        <div>
+          <div class="muted">Notizen</div>
+          <div class="strong" id="notesTitle">Datum</div>
+        </div>
+        <button class="btn" id="notesClose" type="button">✕</button>
+      </div>
+
+      <div id="notesList" class="list" style="margin:10px 0 12px;"></div>
+
+      <div class="card inner" style="margin:0;">
+        <div class="strong" style="margin-bottom:8px;">Neue Notiz</div>
+        <form id="noteForm" class="form">
+          <label>Typ
+            <select id="noteType" class="select">
+              <option value="LH">LH-Test</option>
+              <option value="HCG">Schwangerschaftstest</option>
+              <option value="MITTELSCHMERZ">Mittelschmerz</option>
+              <option value="ZERVIX">Zervixschleim</option>
+              <option value="SCHMERZ">Schmerz</option>
+              <option value="SYMPTOM">Symptom / Notiz</option>
+            </select>
+          </label>
+
+          <div class="grid2">
+            <label>Ergebnis (optional)
+              <select id="noteResult" class="select">
+                <option value="">–</option>
+                <option value="negativ">negativ</option>
+                <option value="positiv">positiv</option>
+                <option value="unsicher">unsicher</option>
+                <option value="fadenziehend">fadenziehend</option>
+              </select>
+            </label>
+            <label>Seite (optional)
+              <select id="noteSide" class="select">
+                <option value="">–</option>
+                <option value="links">links</option>
+                <option value="rechts">rechts</option>
+                <option value="beidseitig">beidseitig</option>
+              </select>
+            </label>
+          </div>
+
+          <label>Intensität 0–10 (optional)
+            <input id="noteIntensity" type="number" min="0" max="10" value="0" />
+          </label>
+
+          <label>Text (optional)
+            <textarea id="noteText" rows="3" placeholder="z. B. Symptome, Stimmung, Temperatur..."></textarea>
+          </label>
+
+          <div class="grid2">
+            <button class="btn primary" type="submit">Notiz speichern</button>
+            <button class="btn" type="button" id="photoBtn">Foto hinzufügen</button>
+          </div>
+
+          <input type="hidden" id="noteImageId" value="" />
+        </form>
+      </div>
+
+      <div class="muted" style="margin-top:10px;font-size:12px;">
+        LH-positiv beeinflusst die Eisprung-Schätzung (≈ +1 Tag) und wird für künftige Prognosen gelernt.
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
