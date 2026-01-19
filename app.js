@@ -972,7 +972,7 @@ function rerenderHormones(){
   drawMarker(markerX(dayInCycle), `Heute • ZT ${dayInCycle}`, text);
 }
 
-// ---------- sharing ----------
+/*// ---------- sharing ----------
 async function shareSummaryAsImage(){
   const summaryEl = document.getElementById("summary");
   if (!summaryEl) throw new Error("Zusammenfassung nicht gefunden.");
@@ -1068,6 +1068,158 @@ async function shareSummaryAsImage(){
     document.body.removeChild(a);
   }, 0);
   alert("Dein Gerät/Browser unterstützt das direkte Teilen nicht. Das Bild wurde stattdessen heruntergeladen.");
+}
+*/
+// ---------- sharing ----------
+async function shareSummaryAsImage(){
+  const summaryEl = document.getElementById("summary");
+  if (!summaryEl) throw new Error("Zusammenfassung nicht gefunden.");
+  if (!summaryEl.innerText.trim()) throw new Error("Noch keine Zusammenfassung zum Teilen.");
+
+  const month = document.getElementById("monthTitle")?.innerText?.trim() || "";
+  const title = month ? `Lunacy – ${month}` : "Lunacy";
+
+  const h2c = (window.html2canvas || window.html2Canvas);
+  if (typeof h2c !== "function"){
+    throw new Error("html2canvas fehlt.");
+  }
+
+  /* -------------------------------
+     SHARE WRAP (Cosmic Card)
+  -------------------------------- */
+  const wrap = document.createElement("div");
+  wrap.setAttribute("aria-hidden","true");
+  wrap.style.position = "fixed";
+  wrap.style.left = "-99999px";
+  wrap.style.top = "0";
+  wrap.style.width = "980px";
+  wrap.style.padding = "32px";
+  wrap.style.borderRadius = "28px";
+  wrap.style.color = "#fbf7ff";
+  wrap.style.fontFamily = "ui-sans-serif, system-ui";
+  wrap.style.background =
+    "radial-gradient(900px 500px at 20% -10%, rgba(201,166,255,0.25), transparent 60%),"+
+    "radial-gradient(700px 500px at 90% 0%, rgba(247,217,120,0.18), transparent 55%),"+
+    "linear-gradient(180deg, #07051a, #140f33)";
+
+  /* -------------------------------
+     STAR CANVAS
+  -------------------------------- */
+  const stars = document.createElement("canvas");
+  stars.width = 980;
+  stars.height = 520;
+  stars.style.position = "absolute";
+  stars.style.inset = "0";
+  stars.style.zIndex = "0";
+
+  const sctx = stars.getContext("2d");
+  sctx.fillStyle = "transparent";
+  sctx.fillRect(0,0,stars.width,stars.height);
+
+  for (let i=0;i<140;i++){
+    const x = Math.random()*stars.width;
+    const y = Math.random()*stars.height;
+    const r = Math.random()*1.4 + 0.2;
+    const a = Math.random()*0.8 + 0.2;
+    sctx.beginPath();
+    sctx.arc(x,y,r,0,Math.PI*2);
+    sctx.fillStyle = `rgba(255,255,255,${a})`;
+    sctx.fill();
+  }
+
+  wrap.appendChild(stars);
+
+  /* -------------------------------
+     HEADER (Logo + Title)
+  -------------------------------- */
+  const head = document.createElement("div");
+  head.style.display = "flex";
+  head.style.alignItems = "center";
+  head.style.gap = "16px";
+  head.style.marginBottom = "20px";
+  head.style.position = "relative";
+  head.style.zIndex = "1";
+
+  const img = document.createElement("img");
+  img.src = "logo.png";
+  img.alt = "Lunacy";
+  img.style.width = "56px";
+  img.style.height = "56px";
+  img.style.borderRadius = "18px";
+  img.style.border = "1px solid rgba(255,255,255,0.25)";
+  img.style.boxShadow = "0 0 24px rgba(247,217,120,0.35)";
+
+  const tbox = document.createElement("div");
+  const t1 = document.createElement("div");
+  t1.textContent = "Lunacy";
+  t1.style.fontWeight = "900";
+  t1.style.fontSize = "22px";
+  t1.style.color = "#f7d978";
+
+  const t2 = document.createElement("div");
+  t2.textContent = month || "";
+  t2.style.opacity = "0.8";
+  t2.style.fontSize = "14px";
+
+  tbox.appendChild(t1);
+  tbox.appendChild(t2);
+
+  head.appendChild(img);
+  head.appendChild(tbox);
+
+  /* -------------------------------
+     CONTENT CARD
+  -------------------------------- */
+  const card = document.createElement("div");
+  card.style.position = "relative";
+  card.style.zIndex = "1";
+  card.style.background = "rgba(24,16,52,0.88)";
+  card.style.border = "1px solid rgba(255,255,255,0.14)";
+  card.style.borderRadius = "22px";
+  card.style.padding = "18px";
+  card.style.boxShadow = "0 20px 60px rgba(0,0,0,0.45)";
+
+  const cloned = summaryEl.cloneNode(true);
+  cloned.style.margin = "0";
+
+  card.appendChild(cloned);
+
+  wrap.appendChild(head);
+  wrap.appendChild(card);
+  document.body.appendChild(wrap);
+
+  /* -------------------------------
+     RENDER IMAGE
+  -------------------------------- */
+  const canvas = await h2c(wrap, {
+    backgroundColor: null,
+    scale: Math.min(2, window.devicePixelRatio || 1),
+    useCORS: true,
+  });
+
+  document.body.removeChild(wrap);
+
+  const blob = await new Promise(res => canvas.toBlob(res, "image/png", 0.92));
+  if (!blob) throw new Error("Bild konnte nicht erzeugt werden.");
+
+  const filename = `lunacy_${iso(new Date())}.png`;
+  const file = new File([blob], filename, { type: "image/png" });
+
+  if (navigator.share && navigator.canShare?.({ files:[file] })){
+    await navigator.share({ title, files:[file] });
+    return;
+  }
+
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  URL.revokeObjectURL(url);
+  document.body.removeChild(a);
+
+  alert("Dein Browser unterstützt Teilen nicht direkt – Bild wurde heruntergeladen.");
 }
 
 // ---------- STATS ----------
