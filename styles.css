@@ -52,6 +52,29 @@ body{
 .brandText .title{ font-weight:900; font-size:14px; letter-spacing:0.2px; }
 .brandText .subtitle{ color:var(--muted); font-size:12px; }
 
+/* Mobile: keep header compact so the logo never "covers" content */
+@media (max-width: 560px){
+  .topbar{
+    padding: 10px 12px;
+    gap: 10px;
+  }
+  .logoImg{ width:28px; height:28px; border-radius: 10px; }
+  .brand{ min-width: 0; }
+  .brandText .title{ font-size:13px; }
+  .brandText .subtitle{ display:none; }
+
+  /* Navigation becomes a horizontal scroll row instead of wrapping into multiple lines */
+  .nav{
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    gap: 8px;
+    padding-bottom: 2px;
+  }
+  .nav::-webkit-scrollbar{ height: 6px; }
+  .btn{ padding: 9px 10px; border-radius: 12px; }
+}
+
 .nav{ display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
 .container{ max-width: 1050px; margin: 16px auto; padding: 0 14px 30px; }
 
