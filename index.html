@@ -19,6 +19,7 @@
     <nav class="nav" aria-label="Navigation">
       <button class="btn" data-view="today">Heute</button>
       <button class="btn" data-view="calendar">Kalender</button>
+      <button class="btn" data-view="hormones">Hormonkurve</button>
       <button class="btn" data-view="stats">Statistiken</button>
       <button class="btn" data-view="settings">Einstellungen</button>
     </nav>
@@ -29,6 +30,23 @@
     <section class="card view" id="view-today">
       <h2>Heute</h2>
       <p class="muted">Schnell-Logging: „Heute Blutung“ und Notizen. Du kannst auch rückwirkend eintragen – oder direkt einen Zeitraum setzen.</p>
+
+      <div class="card inner" id="phasePanel" style="margin-top:10px;">
+        <div class="row" style="background:transparent;border:none;padding:0;gap:12px;align-items:flex-start;">
+          <div style="flex:1;">
+            <div class="muted">Zyklus-Info (≈)</div>
+            <div class="strong" id="phaseTitle">–</div>
+            <div class="muted" style="font-size:12px;margin-top:4px;" id="phaseMeta">–</div>
+          </div>
+          <div class="badges" style="justify-content:flex-end;">
+            <span class="badge" id="phaseBadge">–</span>
+          </div>
+        </div>
+        <div id="phaseTips" class="tips" style="margin-top:10px;"></div>
+        <div class="muted" style="margin-top:8px;font-size:12px;">
+          Hinweise sind alltagstauglich & neutral formuliert (keine medizinische Beratung).
+        </div>
+      </div>
 
       <div class="grid2">
         <button class="btn primary" id="bleedTodayBtn" type="button">Heute Blutung: hinzufügen</button>
@@ -110,6 +128,43 @@
       <div class="summary" id="summary"></div>
     </section>
 
+    <!-- HORMONE CURVE -->
+    <section class="card view hidden" id="view-hormones">
+      <div class="monthbar" style="margin-bottom:12px;">
+        <h2 class="center" style="grid-column:1/-1;">Hormonkurve (Referenzmodell)</h2>
+      </div>
+
+      <p class="muted" style="margin-top:-4px;">
+        Diese Kurven sind <span class="strong">modellierte, relative Verläufe</span> über deinen aktuellen Zyklus (keine Messung, keine medizinische Aussage).
+        Sie dienen nur als Orientierung.
+      </p>
+
+      <div class="card inner" style="margin-top:10px;">
+        <div class="row" style="background:transparent;border:none;padding:0;align-items:center;">
+          <div style="flex:1;">
+            <div class="muted">Aktueller Zyklus</div>
+            <div class="strong" id="hormoneCycleLabel">–</div>
+            <div class="muted" style="font-size:12px;margin-top:4px;" id="hormoneMeta">–</div>
+          </div>
+          <div class="badges" style="justify-content:flex-end;">
+            <span class="badge"><span class="dot dot-e"></span>Östrogen</span>
+            <span class="badge"><span class="dot dot-lh"></span>LH</span>
+            <span class="badge"><span class="dot dot-p"></span>Progesteron</span>
+            <span class="badge"><span class="dot dot-bbt"></span>Basaltemp (opt.)</span>
+          </div>
+        </div>
+
+        <div class="chartWrap">
+          <canvas id="hormoneChart" width="980" height="420" aria-label="Hormonkurven"></canvas>
+        </div>
+
+        <div class="muted" style="margin-top:10px;font-size:12px;">
+          Markierungen: <span class="strong">Heute</span> (Linie) und <span class="strong">geschätzter Eisprung</span> (Linie).
+          Werte sind 0–1 skaliert (relativ).
+        </div>
+      </div>
+    </section>
+
     <!-- STATS -->
     <section class="card view hidden" id="view-stats">
       <h2>Statistiken</h2>
@@ -137,6 +192,11 @@
             <input type="number" id="setPeriodLen" min="1" max="14" value="5" />
           </label>
         </div>
+
+        <label class="inlineCheck">
+          <input type="checkbox" id="setTtc" />
+          Kinderwunsch aktiv (zeigt ET-/Sternzeichen-Infos & nimmt sie beim Teilen mit)
+        </label>
 
         <label>Standard Eisprungtag (Zyklustag, optional)
           <input type="number" id="setOvuDay" min="6" max="50" placeholder="z. B. 23" />
