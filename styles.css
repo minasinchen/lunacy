@@ -130,10 +130,17 @@ input:focus, select:focus, textarea:focus{ border-color: rgba(106,169,255,0.5); 
 
 .monthbar{
   display:grid;
-  grid-template-columns: 44px 1fr 44px;
+  grid-template-columns: 44px 1fr auto;
   align-items:center;
   gap:10px;
   margin-bottom: 10px;
+}
+
+.monthbarRight{
+  display:flex;
+  gap:10px;
+  justify-content:flex-end;
+  align-items:center;
 }
 
 .legend{

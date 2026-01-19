@@ -5,7 +5,6 @@
 
 const KEY_BLEED   = "pt_bleed_v1";   // array of ISO dates with bleeding
 const KEY_NOTES   = "pt_notes_v1";   // {dateISO: [notes]}
-const KEY_IMAGES  = "pt_images_v1";  // [{id,kind,dataUrl,createdAt}]
 const KEY_SETTINGS= "pt_settings_v1";// {cycleLen,periodLen,ovuDay,motherSign,fatherSign}
 
 // ---------- utils ----------
@@ -240,11 +239,9 @@ function derivePeriodsFromBleed(daysISO){
   return periods;
 }
 
-// ---------- notes/images ----------
+// ---------- notes ----------
 function loadNotesByDate(){ return loadJSON(KEY_NOTES, {}); }
 function saveNotesByDate(map){ saveJSON(KEY_NOTES, map); }
-function loadImages(){ return loadJSON(KEY_IMAGES, []); }
-function saveImages(arr){ saveJSON(KEY_IMAGES, arr); }
 
 function dayHasNotes(dateISO){
   const notes = (loadNotesByDate()[dateISO] || []);
@@ -543,6 +540,53 @@ function rerenderCalendar(){
   `;
 }
 
+// ---------- sharing ----------
+async function shareSummaryAsImage(){
+  const el = document.getElementById("summary");
+  if (!el) throw new Error("Zusammenfassung nicht gefunden.");
+  if (!el.innerText.trim()) throw new Error("Noch keine Zusammenfassung zum Teilen.");
+
+  const h2 = document.getElementById("monthTitle")?.innerText?.trim() || "";
+  const title = h2 ? `Periodentracker – ${h2}` : "Periodentracker";
+
+  const h2c = (window.html2canvas || window.html2Canvas);
+  if (typeof h2c !== "function"){
+    throw new Error("Screenshot-Bibliothek fehlt (html2canvas). Prüfe Internet/Adblock.");
+  }
+
+  // Render high-ish res while keeping file size reasonable
+  const canvas = await h2c(el, {
+    backgroundColor: getComputedStyle(document.body).backgroundColor || null,
+    scale: Math.min(2, window.devicePixelRatio || 1),
+    useCORS: true,
+  });
+
+  const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png", 0.92));
+  if (!blob) throw new Error("Konnte Bild nicht erzeugen.");
+
+  const filename = `periodentracker_${iso(new Date())}.png`;
+  const file = new File([blob], filename, { type: "image/png" });
+
+  const canShareFiles = !!(navigator.share && navigator.canShare && navigator.canShare({ files: [file] }));
+  if (canShareFiles){
+    await navigator.share({ title, text: "Nächste Termine (≈)", files: [file] });
+    return;
+  }
+
+  // fallback: download
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(()=>{
+    URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+  }, 0);
+  alert("Dein Gerät/Browser unterstützt das direkte Teilen nicht. Das Bild wurde stattdessen heruntergeladen.");
+}
+
 // ---------- STATS ----------
 function computeOvulationForCycle(periodStart, nextStart, model, notesByDate){
   const cycleEnd = addDays(nextStart, -1);
@@ -685,8 +729,6 @@ function renderNotesList(){
   const list = document.getElementById("notesList");
   const notesByDate = loadNotesByDate();
   const notes = (notesByDate[currentNotesDate] || []).slice().sort((a,b)=>(a.createdAt<b.createdAt?1:-1));
-  const images = loadImages();
-  const imgById = new Map(images.map(i=>[i.id, i]));
 
   if (!notes.length){ list.innerHTML = '<p class="muted">Keine Notizen für diesen Tag.</p>'; return; }
 
@@ -695,18 +737,6 @@ function renderNotesList(){
     if (n.result) badges.push(`Ergebnis: ${n.result}`);
     if (n.side) badges.push(`Seite: ${n.side}`);
     if (typeof n.intensity==="number" && n.intensity>0) badges.push(`Intensität: ${n.intensity}/10`);
-    if (n.imageId) badges.push("Foto");
-
-    const img = n.imageId ? imgById.get(n.imageId) : null;
-    const imgHtml = img ? `
-      <div class="noteImageRow">
-        <img class="noteThumb" src="${img.dataUrl}" alt="Foto" loading="lazy" />
-        <div class="noteImageMeta">
-          <div class="muted" style="font-size:12px;">${escapeHtml(img.kind||"Foto")} • ${formatDateDE(img.createdAt.slice(0,10))}</div>
-          <button class="btn small" type="button" data-open-image="${img.id}">Bild öffnen</button>
-        </div>
-      </div>
-    ` : "";
 
     return `
       <div class="row">
@@ -714,7 +744,6 @@ function renderNotesList(){
           <div class="strong">${escapeHtml(labelForType(n.type))}</div>
           ${n.text?`<div style="margin-top:6px;">${escapeHtml(n.text)}</div>`:""}
           ${badges.length?`<div class="badges">${badges.map(b=>`<span class="badge">${escapeHtml(b)}</span>`).join("")}</div>`:""}
-          ${imgHtml}
         </div>
         <button class="btn small" type="button" data-del-note="${n.id}">Löschen</button>
       </div>
@@ -733,14 +762,6 @@ function renderNotesList(){
     });
   });
 
-  list.querySelectorAll("[data-open-image]").forEach(btn=>{
-    btn.addEventListener("click", ()=>{
-      const id = btn.getAttribute("data-open-image");
-      const img = imgById.get(id);
-      if (!img) return;
-      window.open(img.dataUrl, "_blank", "noopener,noreferrer");
-    });
-  });
 }
 
 // ---------- CSV Import/Export ----------
@@ -780,14 +801,22 @@ function parseCSV(text){
 
 function exportAllToCSV(){
   const rows = [[
-    "record_type","date","id","type","result","side","intensity","text","imageId","imageKind","imageDataUrl","createdAt","cycleLen","periodLen","ovuDay","motherSign","fatherSign"
+    "record_type","date","id","type","result","side","intensity","text","createdAt","cycleLen","periodLen","ovuDay","motherSign","fatherSign"
   ]];
 
   const s = loadSettings();
-  rows.push(["SETTINGS","", "", "", "", "", "", "", "", "", "", "", String(s.cycleLen), String(s.periodLen), String(s.ovuDay ?? ""), String(s.motherSign||""), String(s.fatherSign||"")]);
+  rows.push([
+    "SETTINGS",
+    "", "", "", "", "", "", "", "",
+    String(s.cycleLen),
+    String(s.periodLen),
+    String(s.ovuDay ?? ""),
+    String(s.motherSign||""),
+    String(s.fatherSign||"")
+  ]);
 
   for (const d of loadBleedDays()){
-    rows.push(["BLEED", d, "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""]);
+    rows.push(["BLEED", d, "", "", "", "", "", "", "", "", "", "", "", ""]);
   }
 
   const notesByDate = loadNotesByDate();
@@ -802,31 +831,10 @@ function exportAllToCSV(){
         n.side||"",
         (typeof n.intensity==="number"?String(n.intensity):""),
         n.text||"",
-        n.imageId||"",
-        "",
-        "",
         n.createdAt||"",
         "","","","",""
       ]);
     }
-  }
-
-  for (const img of loadImages()){
-    rows.push([
-      "IMAGE",
-      img.createdAt ? img.createdAt.slice(0,10) : "",
-      img.id||"",
-      "",
-      "",
-      "",
-      "",
-      "",
-      "",
-      img.kind||"",
-      img.dataUrl||"",
-      img.createdAt||"",
-      "","","","",""
-    ]);
   }
 
   const csv = toCSV(rows);
@@ -855,9 +863,6 @@ async function importAllFromCSV(file, replaceExisting=false){
     side: idx("side"),
     intensity: idx("intensity"),
     text: idx("text"),
-    imageId: idx("imageId"),
-    imageKind: idx("imageKind"),
-    imageDataUrl: idx("imageDataUrl"),
     createdAt: idx("createdAt"),
     cycleLen: idx("cycleLen"),
     periodLen: idx("periodLen"),
@@ -871,15 +876,12 @@ async function importAllFromCSV(file, replaceExisting=false){
   if (replaceExisting){
     localStorage.removeItem(KEY_BLEED);
     localStorage.removeItem(KEY_NOTES);
-    localStorage.removeItem(KEY_IMAGES);
     localStorage.removeItem(KEY_SETTINGS);
   }
 
   // existing
   const bleed = new Set(loadBleedDays());
   const notesByDate = loadNotesByDate();
-  const images = loadImages();
-  const imageIds = new Set(images.map(i=>i.id));
   const noteIds = new Set(Object.values(notesByDate).flat().map(n=>n.id));
 
   for (let r=1;r<rows.length;r++){
@@ -904,18 +906,6 @@ async function importAllFromCSV(file, replaceExisting=false){
       continue;
     }
 
-    if (rt === "IMAGE"){
-      const id = String(row[ri.id]||"").trim() || uid();
-      if (imageIds.has(id)) continue;
-      const kind = String(row[ri.imageKind]||"").trim() || "unknown";
-      const dataUrl = String(row[ri.imageDataUrl]||"").trim();
-      const createdAt = String(row[ri.createdAt]||new Date().toISOString());
-      if (!dataUrl) continue;
-      images.push({ id, kind, dataUrl, createdAt });
-      imageIds.add(id);
-      continue;
-    }
-
     if (rt === "NOTE"){
       const dateISO = String(row[ri.date]||"").trim();
       if (!dateISO) continue;
@@ -928,7 +918,6 @@ async function importAllFromCSV(file, replaceExisting=false){
         side: String(row[ri.side]||"").trim() || null,
         intensity: clamp(Number(row[ri.intensity]||0), 0, 10),
         text: String(row[ri.text]||"").trim() || null,
-        imageId: String(row[ri.imageId]||"").trim() || null,
         createdAt: String(row[ri.createdAt]||new Date().toISOString()),
       };
       notesByDate[dateISO] = notesByDate[dateISO] || [];
@@ -941,34 +930,6 @@ async function importAllFromCSV(file, replaceExisting=false){
   const filled = fillSmallGaps([...bleed].sort());
   saveBleedDays(filled);
   saveNotesByDate(notesByDate);
-  saveImages(images);
-}
-
-async function capturePhoto(kind="unknown"){
-  const input=document.createElement("input");
-  input.type="file"; input.accept="image/*"; input.capture="environment";
-  input.style.display="none"; document.body.appendChild(input);
-
-  const file = await new Promise(resolve=>{
-    input.addEventListener("change", ()=>resolve(input.files?.[0]||null), { once:true });
-    input.click();
-  });
-
-  document.body.removeChild(input);
-  if (!file) return null;
-
-  const dataUrl = await new Promise((resolve,reject)=>{
-    const r=new FileReader();
-    r.onload=()=>resolve(String(r.result));
-    r.onerror=reject;
-    r.readAsDataURL(file);
-  });
-
-  const images=loadImages();
-  const item={ id: uid(), createdAt: new Date().toISOString(), kind, dataUrl };
-  images.push(item);
-  saveImages(images);
-  return item.id;
 }
 
 // ---------- SETTINGS UI ----------
@@ -1033,9 +994,8 @@ function init(){
     const side = document.getElementById("noteSide").value;
     const intensity = clamp(Number(document.getElementById("noteIntensity").value||0), 0, 10);
     const text = (document.getElementById("noteText").value||"").trim();
-    const imageId = document.getElementById("noteImageId").value || "";
 
-    const note = { id: uid(), type, result: result||null, side: side||null, intensity, text: text||null, imageId: imageId||null, createdAt: new Date().toISOString() };
+    const note = { id: uid(), type, result: result||null, side: side||null, intensity, text: text||null, createdAt: new Date().toISOString() };
 
     const notesByDate = loadNotesByDate();
     notesByDate[currentNotesDate] = notesByDate[currentNotesDate] || [];
@@ -1044,21 +1004,24 @@ function init(){
 
     ev.target.reset();
     document.getElementById("noteIntensity").value = 0;
-    document.getElementById("noteImageId").value = "";
 
     renderNotesList();
     rerenderCalendar();
     rerenderStats();
   });
 
-  document.getElementById("photoBtn").addEventListener("click", async ()=>{
-    if (!currentNotesDate) return;
-    const type = document.getElementById("noteType").value;
-    const kind = type==="LH" ? "LH" : (type==="HCG" ? "HCG" : "unknown");
-    const imageId = await capturePhoto(kind);
-    if (imageId){
-      document.getElementById("noteImageId").value = imageId;
-      alert("Foto gespeichert. Es wird mit der nächsten Notiz verknüpft.");
+  document.getElementById("noteClearBtn")?.addEventListener("click", ()=>{
+    document.getElementById("noteForm")?.reset();
+    document.getElementById("noteIntensity").value = 0;
+  });
+
+  // share: calendar summary as image
+  document.getElementById("shareSummaryBtn")?.addEventListener("click", async ()=>{
+    try{
+      await shareSummaryAsImage();
+    }catch(e){
+      console.error(e);
+      alert("Teilen fehlgeschlagen: " + (e?.message || String(e)));
     }
   });
 
@@ -1098,10 +1061,9 @@ function init(){
   });
 
   document.getElementById("resetDataBtn").addEventListener("click", ()=>{
-    if (!confirm("Wirklich ALLE Daten löschen (Blutungstage/Notizen/Bilder/Einstellungen)?")) return;
+    if (!confirm("Wirklich ALLE Daten löschen (Blutungstage/Notizen/Einstellungen)?")) return;
     localStorage.removeItem(KEY_BLEED);
     localStorage.removeItem(KEY_NOTES);
-    localStorage.removeItem(KEY_IMAGES);
     localStorage.removeItem(KEY_SETTINGS);
     rerenderToday(); rerenderCalendar(); rerenderStats();
   });

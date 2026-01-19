@@ -51,7 +51,10 @@
       <div class="monthbar">
         <button class="btn" id="prevBtn" type="button">‹</button>
         <h2 id="monthTitle" class="center"></h2>
-        <button class="btn" id="nextBtn" type="button">›</button>
+        <div class="monthbarRight">
+          <button class="btn" id="shareSummaryBtn" type="button" title="Zusammenfassung als Bild teilen">Teilen</button>
+          <button class="btn" id="nextBtn" type="button">›</button>
+        </div>
       </div>
 
       <div class="legend">
@@ -143,7 +146,7 @@
       <div class="card inner" style="margin-top:12px;">
         <div class="strong">Daten (CSV)</div>
         <p class="muted" style="margin:6px 0 10px;font-size:12px;">
-          Export/Import umfasst Blutungstage, Notizen, Fotos und Einstellungen.
+          Export/Import umfasst Blutungstage, Notizen und Einstellungen.
         </p>
 
         <div class="grid2">
@@ -232,10 +235,8 @@
 
           <div class="grid2">
             <button class="btn primary" type="submit">Notiz speichern</button>
-            <button class="btn" type="button" id="photoBtn">Foto hinzufügen</button>
+            <button class="btn" type="button" id="noteClearBtn">Eingaben leeren</button>
           </div>
-
-          <input type="hidden" id="noteImageId" value="" />
         </form>
       </div>
 
@@ -245,6 +246,7 @@
     </div>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
