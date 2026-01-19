@@ -31,22 +31,7 @@
       <h2>Heute</h2>
       <p class="muted">Schnell-Logging: „Heute Blutung“ und Notizen. Du kannst auch rückwirkend eintragen – oder direkt einen Zeitraum setzen.</p>
 
-      <div class="card inner" id="phasePanel" style="margin-top:10px;">
-        <div class="row" style="background:transparent;border:none;padding:0;gap:12px;align-items:flex-start;">
-          <div style="flex:1;">
-            <div class="muted">Zyklus-Info (≈)</div>
-            <div class="strong" id="phaseTitle">–</div>
-            <div class="muted" style="font-size:12px;margin-top:4px;" id="phaseMeta">–</div>
-          </div>
-          <div class="badges" style="justify-content:flex-end;">
-            <span class="badge" id="phaseBadge">–</span>
-          </div>
-        </div>
-        <div id="phaseTips" class="tips" style="margin-top:10px;"></div>
-        <div class="muted" style="margin-top:8px;font-size:12px;">
-          Hinweise sind alltagstauglich & neutral formuliert (keine medizinische Beratung).
-        </div>
-      </div>
+      
 
       <div class="grid2">
         <button class="btn primary" id="bleedTodayBtn" type="button">Heute Blutung: hinzufügen</button>
@@ -97,8 +82,27 @@
         </div>
       </div>
 
+		<div class="card inner" id="phasePanel" style="margin-top:10px;">
+        <div class="row" style="background:transparent;border:none;padding:0;gap:12px;align-items:flex-start;">
+          <div style="flex:1;">
+            <div class="muted">Zyklus-Info (≈)</div>
+            <div class="strong" id="phaseTitle">–</div>
+            <div class="muted" style="font-size:12px;margin-top:4px;" id="phaseMeta">–</div>
+          </div>
+          <div class="badges" style="justify-content:flex-end;">
+            <span class="badge" id="phaseBadge">–</span>
+          </div>
+        </div>
+        <div id="phaseTips" class="tips" style="margin-top:10px;"></div>
+        <div class="muted" style="margin-top:8px;font-size:12px;">
+          Hinweise sind alltagstauglich & neutral formuliert (keine medizinische Beratung).
+        </div>
+      </div>
+
       <h3 style="margin-top:14px;">Letzte Perioden (aus Blutungstagen)</h3>
       <div id="periodsList" class="list"></div>
+
+
 
       <div class="muted" style="margin-top:12px;font-size:12px;">
         Hinweis: Notizen (LH, Schmerz etc.) kannst du pro Tag im Kalender hinzufügen.
@@ -269,6 +273,32 @@
         </div>
       </div>
 
+      <div class="card inner" style="margin-top:12px;">
+        <div class="strong">Automatisches Backup (Google Drive)</div>
+        <p class="muted" style="margin:6px 0 10px;font-size:12px;">
+          Optional: Wenn aktiviert, werden deine Daten (Blutungstage/Notizen/Einstellungen) nach <span class="strong">jeder Änderung</span>
+          automatisch in eine einzige Datei in Google Drive geschrieben (wird immer überschrieben).
+        </p>
+
+        <label class="inlineCheck">
+          <input type="checkbox" id="gdriveBackupEnabled" />
+          Backup aktivieren
+        </label>
+
+        <div class="rowBtns" style="margin-top:8px;">
+          <button class="btn" type="button" id="gdriveConnectBtn">Mit Google Drive verbinden</button>
+          <button class="btn" type="button" id="gdriveBackupNowBtn">Jetzt sichern</button>
+        </div>
+
+        <div class="muted" id="gdriveStatus" style="margin-top:10px;font-size:12px;">
+          Status: nicht verbunden.
+        </div>
+
+        <div class="muted" style="margin-top:8px;font-size:12px;">
+          Hinweis: Das Backup funktioniert nur, wenn diese Seite geöffnet ist und du Internet hast.
+        </div>
+      </div>
+
       <div class="muted" style="margin-top:12px;font-size:12px;">
         „Eisprungtag“ wird nur genutzt, wenn noch keine LH-positiv Daten vorhanden sind.
       </div>
@@ -276,7 +306,7 @@
   </main>
 
   <footer class="footer">
-    <small class="muted">Datenschutz: Daten bleiben auf deinem Gerät. Keine Cloud, kein Account.</small>
+    <small class="muted">Datenschutz: Standardmäßig bleiben Daten lokal auf deinem Gerät. Optional kannst du in den Einstellungen ein Google‑Drive‑Backup aktivieren.</small>
   </footer>
 
   <!-- Notes Modal -->
@@ -349,6 +379,12 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <!-- Google Identity Services (für optionales Google-Drive-Backup) -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script src="utils.js"></script>
+  <script src="astro.js"></script>
+  <script src="driveBackup.js"></script>
   <script src="app.js"></script>
+  <script src="tips.js"></script>
 </body>
 </html>
