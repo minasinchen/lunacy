@@ -1,15 +1,21 @@
 :root{
-  /* "Lunacy" palette – stärker am Logo (Violett/Lavendel + Gold)
-     Fokus: Kontrast & Lesbarkeit (auch im Dark Mode). */
-  --bg:#08061a;            /* deep violet */
-  --bg2:#151035;           /* plum */
-  --card: rgba(22,16,46,0.86);
-  --text:#f7f3ff;
-  --muted:#c7bedf;
+  /* Lunacy Branding
+     Basis: Violett/Lavendel
+     Gold: nur als gezielte Hervorhebung (Header/Primary)
+     Fokus: mobile-first, große Schrift, hoher Kontrast (auch Dark Mode). */
+  --bg:#07051a;            /* deep violet */
+  --bg2:#140f33;           /* plum */
+  --card: rgba(24,16,52,0.88);
+  --text:#fbf7ff;
+  --muted:#cfc6ea;
   --line: rgba(255,255,255,0.14);
-  --accent:#f7d978;        /* moon gold */
+  --accent:#f7d978;        /* logo gold */
   --accent2:#caa9ff;       /* lavender */
   --ink: rgba(10,8,20,0.92);
+
+  /* Typography: system stack (no webfonts) */
+  --font-ui: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
+  --font-brand: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
 
   /* curve colors */
   --curve-e: rgba(202,169,255,0.95);
@@ -17,19 +23,23 @@
   --curve-p: rgba(154,255,211,0.90);
   --curve-bbt: rgba(255,140,186,0.90);
 
-  /* status colors (more opaque for readability) */
-  --period: rgba(255, 114, 164, 0.62);
-  --fertile: rgba(108, 255, 196, 0.38);
-  --ovu: rgba(247, 217, 120, 0.62);
-  --pred: rgba(170, 152, 255, 0.40);
+  /* status colors (branding)
+     Period: Lilatöne
+     Fertile: Pink/Rosa
+     Ovulation: Gelb (Logo)
+     Prediction: Blautöne */
+  --period: rgba(183, 132, 255, 0.55);
+  --fertile: rgba(255, 182, 214, 0.30);
+  --ovu: rgba(247, 217, 120, 0.74);
+  --pred: rgba(120, 168, 255, 0.38);
 }
 
 *{ box-sizing:border-box; }
 
 body{
   margin:0;
-  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
-  font-size: 15px;
+  font-family: var(--font-ui);
+  font-size: 18px;
   background:
     radial-gradient(900px 520px at 20% -10%, rgba(201,166,255,0.18), transparent 60%),
     radial-gradient(880px 520px at 90% 0%, rgba(245,211,106,0.12), transparent 60%),
@@ -58,19 +68,27 @@ body{
   box-shadow: 0 10px 30px rgba(0,0,0,0.35);
   background: rgba(255,255,255,0.06);
 }
-.brandText .title{ font-weight:900; font-size:14px; letter-spacing:0.2px; }
+.brandText .title{
+  font-family: var(--font-brand);
+  font-weight: 700;
+  font-style: italic;
+  font-size: 20px;
+  letter-spacing: 0.2px;
+  color: var(--accent);
+  text-shadow: 0 1px 0 rgba(0,0,0,0.35);
+}
 .brandText .subtitle{ color:var(--muted); font-size:12px; }
 
 /* Mobile: keep header compact so the logo never "covers" content */
 @media (max-width: 560px){
-  body{ font-size: 17px; }
+  body{ font-size: 19px; }
   .topbar{
     padding: 10px 12px;
     gap: 10px;
   }
   .logoImg{ width:28px; height:28px; border-radius: 10px; }
   .brand{ min-width: 0; }
-  .brandText .title{ font-size:13px; }
+  .brandText .title{ font-size: 19px; }
   .brandText .subtitle{ display:none; }
 
   /* Navigation becomes a horizontal scroll row instead of wrapping into multiple lines */
@@ -82,7 +100,7 @@ body{
     padding-bottom: 2px;
   }
   .nav::-webkit-scrollbar{ height: 6px; }
-  .btn{ padding: 12px 14px; border-radius: 14px; }
+  .btn{ padding: 13px 16px; border-radius: 14px; }
 }
 
 .nav{ display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
@@ -104,8 +122,8 @@ body{
   background: rgba(255,255,255,0.03);
 }
 
-h2{ margin:0 0 10px 0; font-size:16px; }
-h3{ margin:0 0 10px 0; font-size:14px; }
+h2{ margin:0 0 10px 0; font-size:18px; letter-spacing: 0.2px; }
+h3{ margin:0 0 10px 0; font-size:16px; }
 .center{ text-align:center; margin:0; }
 
 .muted{ color: var(--muted); }
@@ -117,8 +135,8 @@ h3{ margin:0 0 10px 0; font-size:14px; }
   background: rgba(255,255,255,0.04);
   color: var(--text);
   border-radius: 12px;
-  padding: 11px 14px;
-  font-size: 15px;
+  padding: 12px 16px;
+  font-size: 16px;
   cursor:pointer;
 }
 .btn:hover{ border-color: rgba(255,255,255,0.20); }
@@ -134,7 +152,7 @@ h3{ margin:0 0 10px 0; font-size:14px; }
 .form{ display:flex; flex-direction:column; gap:12px; }
 label{ display:flex; flex-direction:column; gap:6px; font-size:14px; }
 input, select, textarea{
-  padding: 10px 12px;
+  padding: 12px 14px;
   border-radius: 12px;
   border: 1px solid var(--line);
   background: rgba(255,255,255,0.06);
@@ -170,7 +188,7 @@ input:focus, select:focus, textarea:focus{ border-color: rgba(201,166,255,0.60);
   background: rgba(0,0,0,0.12);
   gap:10px;
 }
-.small{ font-size:12px; }
+.small{ font-size:13px; }
 
 .monthbar{
   display:grid;
@@ -194,7 +212,7 @@ input:focus, select:focus, textarea:focus{ border-color: rgba(201,166,255,0.60);
   margin-bottom: 12px;
 }
 .pill{
-  font-size: 12px;
+  font-size: 13px;
   padding: 6px 10px;
   border-radius: 999px;
   border: 1px solid var(--line);
@@ -214,7 +232,7 @@ input:focus, select:focus, textarea:focus{ border-color: rgba(201,166,255,0.60);
 .cell{
   border: 1px solid var(--line);
   border-radius: 14px;
-  background: rgba(0,0,0,0.14);
+  background: rgba(0,0,0,0.18);
   min-height: 68px;
   padding: 8px;
   position: relative;
@@ -226,18 +244,30 @@ input:focus, select:focus, textarea:focus{ border-color: rgba(201,166,255,0.60);
   align-items:center;
   justify-content:center;
   font-weight: 900;
-  color: rgba(243,240,255,0.74);
+  color: rgba(255,255,255,0.82);
   background: rgba(0,0,0,0.16);
 }
 .day{ width:100%; text-align:left; cursor:pointer; }
-.dim{ opacity: 0.46; }
-.date{ font-weight: 950; font-size: 13px; text-shadow: 0 1px 0 rgba(0,0,0,0.35); }
+/* "Außerhalb des Monats" soll optisch ruhiger sein,
+   aber die Datumszahl muss trotzdem gut lesbar bleiben.
+   (Opacity auf dem ganzen Element würde auch die Zahl abdunkeln.) */
+.dim{
+  opacity: 1;
+  filter: saturate(0.7) brightness(0.95);
+}
+.dim .badge{ opacity: 0.72; }
+.date{
+  font-weight: 950;
+  font-size: 14px;
+  color: #ffffff; /* Datumszahlen im Kalender immer weiß (Kontrast!) */
+  text-shadow: 0 2px 10px rgba(0,0,0,0.60), 0 1px 0 rgba(0,0,0,0.45);
+}
 
 @media (max-width: 560px){
   .calendar{ gap: 10px; }
   .cell{ min-height: 78px; padding: 10px; border-radius: 16px; }
   .cell.head{ min-height: 38px; font-size: 14px; }
-  .date{ font-size: 15px; }
+  .date{ font-size: 16px; }
 }
 
 .badges{ display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
@@ -255,10 +285,10 @@ input:focus, select:focus, textarea:focus{ border-color: rgba(201,166,255,0.60);
 }
 
 /* stronger, more readable day highlights */
-.bg-period{ background: linear-gradient(0deg, var(--period), rgba(0,0,0,0.10)); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08); }
-.bg-fertile{ background: linear-gradient(0deg, var(--fertile), rgba(0,0,0,0.10)); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06); }
-.bg-ovu{ background: linear-gradient(0deg, var(--ovu), rgba(0,0,0,0.10)); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06); }
-.bg-predicted{ background: linear-gradient(0deg, var(--pred), rgba(0,0,0,0.10)); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06); }
+.bg-period{ background: linear-gradient(0deg, var(--period), rgba(0,0,0,0.12)); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08); }
+.bg-fertile{ background: linear-gradient(0deg, var(--fertile), rgba(0,0,0,0.12)); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06); }
+.bg-ovu{ background: linear-gradient(0deg, var(--ovu), rgba(0,0,0,0.12)); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06); }
+.bg-predicted{ background: linear-gradient(0deg, var(--pred), rgba(0,0,0,0.12)); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06); }
 
 .summary .kpi{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
 @media (max-width: 820px){ .summary .kpi{ grid-template-columns: 1fr; } }
@@ -269,6 +299,13 @@ input:focus, select:focus, textarea:focus{ border-color: rgba(201,166,255,0.60);
   background: rgba(0,0,0,0.12);
 }
 .big{ font-size:18px; font-weight:950; margin-top:2px; }
+
+/* Slightly larger base text on very small screens (avoid mini-elements) */
+@media (max-width: 380px){
+  body{ font-size: 18px; }
+  .btn{ font-size: 16px; }
+  .small{ font-size: 13px; }
+}
 
 /* Mobile-friendly "table" replacement */
 .tableGrid{
@@ -366,3 +403,78 @@ input:focus, select:focus, textarea:focus{ border-color: rgba(201,166,255,0.60);
 
 /* Slightly higher contrast for inner cards in dark background */
 .card.inner{ background: rgba(255,255,255,0.04); }
+
+/* --- Phase mini overview (Heute) --- */
+.phaseMini{
+  display:grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap:10px;
+}
+@media (max-width: 820px){
+  .phaseMini{ grid-template-columns: repeat(2, 1fr); }
+}
+
+.phaseTile{
+  text-align:left;
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 16px;
+  padding: 10px 12px;
+  background: rgba(255,255,255,0.03);
+  cursor:pointer;
+  display:flex;
+  gap:10px;
+  align-items:flex-start;
+}
+.phaseTile:hover{ border-color: rgba(255,255,255,0.18); }
+.phaseIcon{
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  border: 1px solid rgba(255,255,255,0.10);
+  background: rgba(0,0,0,0.16);
+  font-size: 18px;
+  line-height: 1;
+  flex: 0 0 auto;
+}
+.phaseTileMain{ flex: 1; min-width: 0; }
+.phaseTileTop{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.phaseTileLabel{ font-weight: 950; }
+.phaseTileHint{ color: var(--muted); margin-top: 4px; font-size: 12px; line-height: 1.25; }
+.phaseTileDir{
+  font-weight: 950;
+  font-size: 16px;
+  padding: 0 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(0,0,0,0.14);
+  flex: 0 0 auto;
+}
+
+/* --- Hormone view: details cards --- */
+.hormoneDetailsBody{
+  display:grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap:10px;
+}
+@media (max-width: 820px){
+  .hormoneDetailsBody{ grid-template-columns: 1fr; }
+}
+
+.hDetail{
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 16px;
+  padding: 12px;
+  background: rgba(255,255,255,0.03);
+}
+.hDetailH{
+  display:flex;
+  align-items:flex-start;
+  gap:10px;
+}
+.hDetailTitle{ font-weight: 950; }
+.hDetailText{ color: var(--muted); margin-top: 6px; line-height: 1.35; }
+.hDetailWhy{ margin-top: 8px; font-size: 12px; color: rgba(207,198,234,0.85); }
+.hDetailWhy .strong{ font-weight: 950; }

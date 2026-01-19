@@ -12,21 +12,18 @@ function loadJSON(key, fallback){ try{const r=localStorage.getItem(key);return r
 function saveJSON(key, v){ localStorage.setItem(key, JSON.stringify(v));}
 function uid(){ return crypto.randomUUID?crypto.randomUUID():String(Date.now())+"_"+Math.random().toString(16).slice(2);}
 
-function parseISO(s){ return new Date(s+"T00:00:00");}
 function iso(d){
   const dd=new Date(d); const y=dd.getFullYear();
   const m=String(dd.getMonth()+1).padStart(2,"0");
   const day=String(dd.getDate()).padStart(2,"0");
   return `${y}-${m}-${day}`;
 }
-function addDays(date, days){ const d=new Date(date); d.setDate(d.getDate()+days); return d;}
 function diffDays(a,b){
   const ms=24*60*60*1000;
   const aa=new Date(a.getFullYear(),a.getMonth(),a.getDate()).getTime();
   const bb=new Date(b.getFullYear(),b.getMonth(),b.getDate()).getTime();
   return Math.round((bb-aa)/ms);
 }
-function clamp(n,min,max){ return Math.max(min, Math.min(max, n));}
 function between(d,a,b){ const t=d.getTime(); return t>=a.getTime() && t<=b.getTime();}
 function formatDateDE(dateOrISO){
   const d=typeof dateOrISO==="string"?parseISO(dateOrISO):dateOrISO;
@@ -43,119 +40,7 @@ function shortText(s, max=42){
 }
 
 // ---------- astrology helpers (optional fun layer) ----------
-const WESTERN_SIGNS = [
-  { name:"Steinbock", start:[12,22], end:[1,19], adj:["zielstrebig","verlässlich","pragmatisch"], element:"earth" },
-  { name:"Wassermann", start:[1,20], end:[2,18], adj:["unabhängig","originell","idealistisch"], element:"air" },
-  { name:"Fische", start:[2,19], end:[3,20], adj:["einfühlsam","intuitiv","kreativ"], element:"water" },
-  { name:"Widder", start:[3,21], end:[4,19], adj:["mutig","direkt","energiegeladen"], element:"fire" },
-  { name:"Stier", start:[4,20], end:[5,20], adj:["genussvoll","stabil","geduldig"], element:"earth" },
-  { name:"Zwillinge", start:[5,21], end:[6,20], adj:["neugierig","kommunikativ","vielseitig"], element:"air" },
-  { name:"Krebs", start:[6,21], end:[7,22], adj:["fürsorglich","sensibel","loyal"], element:"water" },
-  { name:"Löwe", start:[7,23], end:[8,22], adj:["warmherzig","stolz","kreativ"], element:"fire" },
-  { name:"Jungfrau", start:[8,23], end:[9,22], adj:["analytisch","hilfsbereit","geordnet"], element:"earth" },
-  { name:"Waage", start:[9,23], end:[10,22], adj:["harmonisch","diplomatisch","ästhetisch"], element:"air" },
-  { name:"Skorpion", start:[10,23], end:[11,21], adj:["intensiv","treu","willensstark"], element:"water" },
-  { name:"Schütze", start:[11,22], end:[12,21], adj:["optimistisch","freiheitsliebend","ehrlich"], element:"fire" },
-];
-
-// Chinese New Year dates (Gregorian). Used to decide which zodiac year a date belongs to.
-// Source examples: Wikipedia / Royal Museums Greenwich list the same dates for these years.
-const CHINESE_NEW_YEAR = {
-  2019:"2019-02-05",
-  2020:"2020-01-25",
-  2021:"2021-02-12",
-  2022:"2022-02-01",
-  2023:"2023-01-22",
-  2024:"2024-02-10",
-  2025:"2025-01-29",
-  2026:"2026-02-17",
-  2027:"2027-02-06",
-  2028:"2028-01-26",
-  2029:"2029-02-13",
-  2030:"2030-02-03",
-  2031:"2031-01-23",
-  2032:"2032-02-11",
-  2033:"2033-01-31",
-};
-
-const CHINESE_ANIMALS = ["Ratte","Ochse","Tiger","Hase","Drache","Schlange","Pferd","Ziege","Affe","Hahn","Hund","Schwein"]; // Rat..Pig
-
-function getWesternSign(date){
-  const d = (typeof date === "string") ? parseISO(date) : date;
-  const m = d.getMonth()+1;
-  const day = d.getDate();
-
-  // helper to check ranges that may wrap over year end
-  const inRange = (mm,dd, sMM,sDD, eMM,eDD) => {
-    const val = mm*100+dd;
-    const start = sMM*100+sDD;
-    const end = eMM*100+eDD;
-    if (start <= end) return val >= start && val <= end;
-    return (val >= start) || (val <= end);
-  };
-
-  for (const s of WESTERN_SIGNS){
-    if (inRange(m, day, s.start[0], s.start[1], s.end[0], s.end[1])) return s;
-  }
-  return WESTERN_SIGNS[0];
-}
-
-function getChineseZodiac(date){
-  const d = (typeof date === "string") ? parseISO(date) : date;
-  let y = d.getFullYear();
-  const cnyISO = CHINESE_NEW_YEAR[y];
-  if (cnyISO){
-    const cny = parseISO(cnyISO);
-    if (d < cny) y = y - 1;
-  } else {
-    // fallback: approximate; works for most dates but can be off in Jan/Feb
-    if (d.getMonth() < 1) y = y - 1;
-  }
-
-  const baseYear = 2020; // 2020 = Rat
-  const idx = ((y - baseYear) % 12 + 12) % 12;
-  return { year: y, animal: CHINESE_ANIMALS[idx] };
-}
-
-function astroCompatibilityGrade(childSignName, parentSignName){
-  // Grade 1..6 (1 = best). Heuristic by elements.
-  const child = WESTERN_SIGNS.find(s=>s.name===childSignName);
-  const parent = WESTERN_SIGNS.find(s=>s.name===parentSignName);
-  if (!child || !parent) return null;
-  const ce = child.element;
-  const pe = parent.element;
-
-  if (ce === pe) return 1;
-  const compatible = (a,b)=> (a==="fire"&&b==="air") || (a==="air"&&b==="fire") || (a==="earth"&&b==="water") || (a==="water"&&b==="earth");
-  if (compatible(ce,pe)) return 2;
-
-  // next-best: semi-compatible (fire-earth, air-water)
-  const semi = (a,b)=> (a==="fire"&&b==="earth") || (a==="earth"&&b==="fire") || (a==="air"&&b==="water") || (a==="water"&&b==="air");
-  if (semi(ce,pe)) return 3;
-
-  // hardest: fire-water, earth-air
-  const hard = (a,b)=> (a==="fire"&&b==="water") || (a==="water"&&b==="fire") || (a==="earth"&&b==="air") || (a==="air"&&b==="earth");
-  if (hard(ce,pe)) return 5;
-  return 4;
-}
-
-function combinedParentGrade(childSignName, motherSign, fatherSign){
-  const gM = motherSign ? astroCompatibilityGrade(childSignName, motherSign) : null;
-  const gF = fatherSign ? astroCompatibilityGrade(childSignName, fatherSign) : null;
-  if (gM===null && gF===null) return { grade:null, detail:"" };
-  if (gM!==null && gF!==null){
-    const avg = Math.round((gM + gF) / 2);
-    return { grade: clamp(avg,1,6), detail:`M${gM}/V${gF}` };
-  }
-  const single = (gM!==null)?gM:gF;
-  const label = (gM!==null)?`M${gM}`:`V${gF}`;
-  return { grade: clamp(single,1,6), detail: label };
-}
-
-function computeETFromOvulation(ovuDate){
-  // ET ≈ Eisprung + 266 Tage (38 Wochen)
-  return addDays(ovuDate, 266);
-}
+// Ausgelagert nach astro.js
 
 // ---------- settings ----------
 function loadSettings(){
@@ -498,131 +383,7 @@ function rerenderToday(){
 }
 
 // ---------- TODAY: phase info (neutral tips) ----------
-function getCurrentCycleContext(){
-  const days = loadBleedDays();
-  const periods = derivePeriodsFromBleed(days);
-  const model = buildCalendarModel(periods, 6);
-  if (!periods.length || !model.latestStart) return null;
-
-  const cycleStart = model.latestStart;
-  const nextStart = periods.length > 1 ? periods[1].start : addDays(cycleStart, model.cycleLen);
-  const ovISO = model.ovulationDaysISO?.[0] || null;
-  const ovuDate = ovISO ? parseISO(ovISO) : addDays(cycleStart, model.personalOvuOffset);
-  const periodEnd = addDays(cycleStart, model.periodLen - 1);
-  return {
-    days,
-    periods,
-    model,
-    cycleStart,
-    nextStart,
-    ovuDate,
-    periodEnd,
-  };
-}
-
-function computePhaseForDate(dateISO, ctx){
-  const d = parseISO(dateISO);
-  const { model, cycleStart, nextStart, ovuDate, periodEnd } = ctx;
-
-  const isBleeding = ctx.days.includes(dateISO);
-  const dayInCycle = diffDays(cycleStart, d) + 1; // ZT 1..
-
-  // phase labels are heuristic and intentionally simple
-  let phaseKey = "follicular";
-  let phaseLabel = "Follikelphase (≈)";
-
-  if (isBleeding || between(d, cycleStart, periodEnd)){
-    phaseKey = "menstrual";
-    phaseLabel = "Periode / Menstruation (≈)";
-  } else if (between(d, addDays(ovuDate, -5), addDays(ovuDate, 1))){
-    phaseKey = "fertile";
-    phaseLabel = "Fruchtbare Phase (≈)";
-  } else if (d > addDays(ovuDate, 1) && d < nextStart){
-    phaseKey = "luteal";
-    phaseLabel = "Lutealphase (≈)";
-  } else {
-    phaseKey = "follicular";
-    phaseLabel = "Follikelphase (≈)";
-  }
-
-  const ovDay = diffDays(cycleStart, ovuDate) + 1;
-  const ovText = `Eisprung (≈): ZT ${ovDay} • ${formatDateDE(ovuDate)}`;
-  const nextText = `Nächste Periode (≈): ${formatDateDE(nextStart)}`;
-
-  return {
-    phaseKey,
-    phaseLabel,
-    dayInCycle: clamp(dayInCycle, 1, model.cycleLen),
-    cycleLen: model.cycleLen,
-    ovText,
-    nextText,
-  };
-}
-
-function phaseTips(phaseKey){
-  // Neutral, alltagstauglich, nicht-medizinisch.
-  const common = [
-    { t: "Trinken", d: "Regelmäßig Wasser/Tee – besonders, wenn du viel unterwegs bist." },
-    { t: "Sanfte Routine", d: "Kleine, verlässliche Routinen (Schlaf, Spaziergang) wirken oft stabilisierend." },
-  ];
-
-  const byPhase = {
-    menstrual: [
-      { t: "Wärme & Ruhe", d: "Wärmflasche, Tee, entspannte Bewegung – wenn dir danach ist." },
-      { t: "Essen", d: "Einfache, sättigende Mahlzeiten: Suppe, Hafer, Kartoffeln, Gemüse." },
-      { t: "Optional", d: "Wenn du es verträgst: Magnesium abends oder Ingwer als Getränk (alltagsüblich)." },
-    ],
-    follicular: [
-      { t: "Energie nutzen", d: "Gute Phase für Planung, Ordnung, neue Projekte in kleinen Schritten." },
-      { t: "Bewegung", d: "Wenn du Lust hast: etwas intensiver (z. B. zügiger Spaziergang, Kraft)." },
-      { t: "Essen", d: "Protein + bunte Pflanzen (Salat, Beeren, Hülsenfrüchte) als Basis." },
-    ],
-    fertile: [
-      { t: "Körpergefühl", d: "Manche fühlen sich sozialer/energiegeladener – andere merken wenig. Beides ist ok." },
-      { t: "Alltag", d: "Kalender/Termine: eher Puffer einplanen, falls Energie schwankt." },
-      { t: "Optional", d: "Wenn Kinderwunsch aktiv: Timing/Planung kann helfen – ohne Druck." },
-    ],
-    luteal: [
-      { t: "Stress runterfahren", d: "Mehr Pausen, weniger Multitasking – besonders, wenn du schneller gereizt bist." },
-      { t: "Essen", d: "Sättigende Snacks: Nüsse, Joghurt, Vollkorn, Obst. Nicht zu lange ohne Essen." },
-      { t: "Optional", d: "Wenn du zu Cravings neigst: vorbereitete Snacks (z. B. Nüsse, Riegel)." },
-    ],
-  };
-
-  return [...(byPhase[phaseKey] || []), ...common];
-}
-
-function renderPhasePanel(todayISO){
-  const panel = document.getElementById("phasePanel");
-  if (!panel) return;
-
-  const ctx = getCurrentCycleContext();
-  const titleEl = document.getElementById("phaseTitle");
-  const metaEl = document.getElementById("phaseMeta");
-  const badgeEl = document.getElementById("phaseBadge");
-  const tipsEl = document.getElementById("phaseTips");
-
-  if (!ctx){
-    if (titleEl) titleEl.textContent = "Noch keine Zyklus-Daten";
-    if (metaEl) metaEl.textContent = "Trage ein paar Blutungstage ein, dann kann Lunacy den aktuellen Zyklus modellieren.";
-    if (badgeEl) badgeEl.textContent = "–";
-    if (tipsEl) tipsEl.innerHTML = "";
-    return;
-  }
-
-  const info = computePhaseForDate(todayISO, ctx);
-  if (titleEl) titleEl.textContent = `${info.phaseLabel} • ZT ${info.dayInCycle}/${info.cycleLen}`;
-  if (metaEl) metaEl.textContent = `${info.ovText} • ${info.nextText}`;
-  if (badgeEl) badgeEl.textContent = info.phaseLabel.replace(" (≈)", "");
-
-  const tips = phaseTips(info.phaseKey);
-  tipsEl.innerHTML = tips.map(x=>`
-    <div class="tip">
-      <div class="tipT">${escapeHtml(x.t)}</div>
-      <div class="tipD">${escapeHtml(x.d)}</div>
-    </div>
-  `).join("");
-}
+// Ausgelagert nach tips.js (getCurrentCycleContext / computePhaseForDate / phaseTips / renderPhasePanel)
 
 // ---------- CALENDAR ----------
 let viewDate = new Date();
@@ -850,6 +611,8 @@ function rerenderHormones(){
     if (metaEl) metaEl.textContent = "Trage Blutungstage ein, dann kann Lunacy den aktuellen Zyklus modellieren.";
     const g = canvas.getContext("2d");
     g.clearRect(0,0,canvas.width,canvas.height);
+    // optional details renderer (tips.js)
+    if (typeof window.renderHormoneDetails === "function") window.renderHormoneDetails(null);
     return;
   }
 
@@ -970,6 +733,24 @@ function rerenderHormones(){
   };
   drawMarker(markerX(ovDay), `Eisprung (≈) • ZT ${ovDay}`, colLH);
   drawMarker(markerX(dayInCycle), `Heute • ZT ${dayInCycle}`, text);
+
+  // optional details renderer (tips.js)
+  if (typeof window.renderHormoneDetails === "function" && typeof window.computePhaseForDate === "function"){
+    try{
+      const info = window.computePhaseForDate(todayISO, ctx0);
+      window.renderHormoneDetails({
+        todayISO,
+        phaseKey: info.phaseKey,
+        phaseLabel: info.phaseLabel,
+        dayInCycle: info.dayInCycle,
+        cycleLen: info.cycleLen,
+        ovText: info.ovText,
+        nextText: info.nextText,
+      });
+    }catch(e){
+      console.warn("renderHormoneDetails failed", e);
+    }
+  }
 }
 
 // ---------- sharing ----------
@@ -983,116 +764,59 @@ async function shareSummaryAsImage(){
 
   const h2c = (window.html2canvas || window.html2Canvas);
   if (typeof h2c !== "function"){
-    throw new Error("html2canvas fehlt.");
+    throw new Error("Screenshot-Bibliothek fehlt (html2canvas). Prüfe Internet/Adblock.");
   }
 
-  /* -------------------------------
-     SHARE WRAP (Cosmic Card)
-  -------------------------------- */
+  // Build a dedicated share card so the image always contains everything (incl. logo + month title)
   const wrap = document.createElement("div");
   wrap.setAttribute("aria-hidden","true");
   wrap.style.position = "fixed";
   wrap.style.left = "-99999px";
   wrap.style.top = "0";
   wrap.style.width = "980px";
-  wrap.style.padding = "32px";
-  wrap.style.borderRadius = "28px";
-  wrap.style.color = "#fbf7ff";
-  wrap.style.fontFamily = "ui-sans-serif, system-ui";
-  wrap.style.background =
-    "radial-gradient(900px 500px at 20% -10%, rgba(201,166,255,0.25), transparent 60%),"+
-    "radial-gradient(700px 500px at 90% 0%, rgba(247,217,120,0.18), transparent 55%),"+
-    "linear-gradient(180deg, #07051a, #140f33)";
+  wrap.style.padding = "18px";
+  wrap.style.border = "1px solid rgba(255,255,255,0.12)";
+  wrap.style.borderRadius = "22px";
+  wrap.style.background = getComputedStyle(document.body).background;
+  wrap.style.color = getComputedStyle(document.body).color;
 
-  /* -------------------------------
-     STAR CANVAS
-  -------------------------------- */
-  const stars = document.createElement("canvas");
-  stars.width = 980;
-  stars.height = 520;
-  stars.style.position = "absolute";
-  stars.style.inset = "0";
-  stars.style.zIndex = "0";
-
-  const sctx = stars.getContext("2d");
-  sctx.fillStyle = "transparent";
-  sctx.fillRect(0,0,stars.width,stars.height);
-
-  for (let i=0;i<140;i++){
-    const x = Math.random()*stars.width;
-    const y = Math.random()*stars.height;
-    const r = Math.random()*1.4 + 0.2;
-    const a = Math.random()*0.8 + 0.2;
-    sctx.beginPath();
-    sctx.arc(x,y,r,0,Math.PI*2);
-    sctx.fillStyle = `rgba(255,255,255,${a})`;
-    sctx.fill();
-  }
-
-  wrap.appendChild(stars);
-
-  /* -------------------------------
-     HEADER (Logo + Title)
-  -------------------------------- */
   const head = document.createElement("div");
   head.style.display = "flex";
   head.style.alignItems = "center";
-  head.style.gap = "16px";
-  head.style.marginBottom = "20px";
-  head.style.position = "relative";
-  head.style.zIndex = "1";
+  head.style.gap = "12px";
+  head.style.marginBottom = "12px";
 
   const img = document.createElement("img");
   img.src = "logo.png";
   img.alt = "Lunacy";
-  img.style.width = "56px";
-  img.style.height = "56px";
-  img.style.borderRadius = "18px";
-  img.style.border = "1px solid rgba(255,255,255,0.25)";
-  img.style.boxShadow = "0 0 24px rgba(247,217,120,0.35)";
+  img.style.width = "44px";
+  img.style.height = "44px";
+  img.style.borderRadius = "16px";
+  img.style.border = "1px solid rgba(255,255,255,0.20)";
 
   const tbox = document.createElement("div");
   const t1 = document.createElement("div");
   t1.textContent = "Lunacy";
   t1.style.fontWeight = "900";
-  t1.style.fontSize = "22px";
-  t1.style.color = "#f7d978";
-
+  t1.style.fontSize = "18px";
   const t2 = document.createElement("div");
   t2.textContent = month || "";
-  t2.style.opacity = "0.8";
-  t2.style.fontSize = "14px";
-
+  t2.style.opacity = "0.78";
+  t2.style.fontSize = "13px";
   tbox.appendChild(t1);
   tbox.appendChild(t2);
 
   head.appendChild(img);
   head.appendChild(tbox);
 
-  /* -------------------------------
-     CONTENT CARD
-  -------------------------------- */
-  const card = document.createElement("div");
-  card.style.position = "relative";
-  card.style.zIndex = "1";
-  card.style.background = "rgba(24,16,52,0.88)";
-  card.style.border = "1px solid rgba(255,255,255,0.14)";
-  card.style.borderRadius = "22px";
-  card.style.padding = "18px";
-  card.style.boxShadow = "0 20px 60px rgba(0,0,0,0.45)";
-
   const cloned = summaryEl.cloneNode(true);
   cloned.style.margin = "0";
 
-  card.appendChild(cloned);
-
   wrap.appendChild(head);
-  wrap.appendChild(card);
+  wrap.appendChild(cloned);
   document.body.appendChild(wrap);
 
-  /* -------------------------------
-     RENDER IMAGE
-  -------------------------------- */
+  // Render high-ish res while keeping file size reasonable
   const canvas = await h2c(wrap, {
     backgroundColor: null,
     scale: Math.min(2, window.devicePixelRatio || 1),
@@ -1101,27 +825,30 @@ async function shareSummaryAsImage(){
 
   document.body.removeChild(wrap);
 
-  const blob = await new Promise(res => canvas.toBlob(res, "image/png", 0.92));
-  if (!blob) throw new Error("Bild konnte nicht erzeugt werden.");
+  const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png", 0.92));
+  if (!blob) throw new Error("Konnte Bild nicht erzeugen.");
 
   const filename = `lunacy_${iso(new Date())}.png`;
   const file = new File([blob], filename, { type: "image/png" });
 
-  if (navigator.share && navigator.canShare?.({ files:[file] })){
-    await navigator.share({ title, files:[file] });
+  const canShareFiles = !!(navigator.share && navigator.canShare && navigator.canShare({ files: [file] }));
+  if (canShareFiles){
+    await navigator.share({ title, text: "Zyklus-Zusammenfassung (≈)", files: [file] });
     return;
   }
 
+  // fallback: download
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
   a.download = filename;
   document.body.appendChild(a);
   a.click();
-  URL.revokeObjectURL(url);
-  document.body.removeChild(a);
-
-  alert("Dein Browser unterstützt Teilen nicht direkt – Bild wurde heruntergeladen.");
+  setTimeout(()=>{
+    URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+  }, 0);
+  alert("Dein Gerät/Browser unterstützt das direkte Teilen nicht. Das Bild wurde stattdessen heruntergeladen.");
 }
 
 // ---------- STATS ----------

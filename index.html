@@ -31,22 +31,7 @@
       <h2>Heute</h2>
       <p class="muted">Schnell-Logging: „Heute Blutung“ und Notizen. Du kannst auch rückwirkend eintragen – oder direkt einen Zeitraum setzen.</p>
 
-      <div class="card inner" id="phasePanel" style="margin-top:10px;">
-        <div class="row" style="background:transparent;border:none;padding:0;gap:12px;align-items:flex-start;">
-          <div style="flex:1;">
-            <div class="muted">Zyklus-Info (≈)</div>
-            <div class="strong" id="phaseTitle">–</div>
-            <div class="muted" style="font-size:12px;margin-top:4px;" id="phaseMeta">–</div>
-          </div>
-          <div class="badges" style="justify-content:flex-end;">
-            <span class="badge" id="phaseBadge">–</span>
-          </div>
-        </div>
-        <div id="phaseTips" class="tips" style="margin-top:10px;"></div>
-        <div class="muted" style="margin-top:8px;font-size:12px;">
-          Hinweise sind alltagstauglich & neutral formuliert (keine medizinische Beratung).
-        </div>
-      </div>
+      
 
       <div class="grid2">
         <button class="btn primary" id="bleedTodayBtn" type="button">Heute Blutung: hinzufügen</button>
@@ -97,8 +82,30 @@
         </div>
       </div>
 
+		<div class="card inner" id="phasePanel" style="margin-top:10px;">
+        <div class="row" style="background:transparent;border:none;padding:0;gap:12px;align-items:flex-start;">
+          <div style="flex:1;">
+            <div class="muted">Zyklus-Info (≈)</div>
+            <div class="strong" id="phaseTitle">–</div>
+            <div class="muted" style="font-size:12px;margin-top:4px;" id="phaseMeta">–</div>
+          </div>
+          <div class="badges" style="justify-content:flex-end;">
+            <span class="badge" id="phaseBadge">–</span>
+          </div>
+        </div>
+        <div id="phaseMini" class="phaseMini" style="margin-top:10px;"></div>
+        <div class="rowBtns" style="margin-top:10px;justify-content:flex-end;">
+          <button class="btn" id="phaseMoreBtn" type="button">Details & Erklärungen in der Hormonkurve →</button>
+        </div>
+        <div class="muted" style="margin-top:8px;font-size:12px;">
+          Hinweise sind alltagstauglich & neutral formuliert (keine medizinische Beratung).
+        </div>
+      </div>
+
       <h3 style="margin-top:14px;">Letzte Perioden (aus Blutungstagen)</h3>
       <div id="periodsList" class="list"></div>
+
+
 
       <div class="muted" style="margin-top:12px;font-size:12px;">
         Hinweis: Notizen (LH, Schmerz etc.) kannst du pro Tag im Kalender hinzufügen.
@@ -162,6 +169,17 @@
           Markierungen: <span class="strong">Heute</span> (Linie) und <span class="strong">geschätzter Eisprung</span> (Linie).
           Werte sind 0–1 skaliert (relativ).
         </div>
+      </div>
+
+      <div class="card inner hormoneDetails" id="hormoneDetails" style="margin-top:12px;">
+        <div class="row" style="background:transparent;border:none;padding:0;align-items:flex-start;gap:12px;">
+          <div style="flex:1;">
+            <div class="muted">Heute: Mini-Übersicht</div>
+            <div class="strong" id="hormoneDetailsTitle">–</div>
+            <div class="muted" style="font-size:12px;margin-top:4px;" id="hormoneDetailsMeta">Tippe auf eine Kategorie, um mehr zu lesen.</div>
+          </div>
+        </div>
+        <div id="hormoneDetailsBody" class="hormoneDetailsBody" style="margin-top:10px;"></div>
       </div>
     </section>
 
@@ -349,6 +367,9 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <script src="utils.js"></script>
+  <script src="astro.js"></script>
   <script src="app.js"></script>
+  <script src="tips.js"></script>
 </body>
 </html>
