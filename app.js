@@ -1,4 +1,4 @@
-// app.js - Periodentracker v2 (3 Dateien)
+// app.js - Lunacy v2 (3 Dateien)
 // Neu: tägliches Blutungs-Logging + automatische Perioden-Erkennung (inkl. vergessene Tage)
 // Neu: Notiz-Icon im Kalender
 // Neu: Stats: Eisprung-Zyklustag für letzte 12 Zyklen (LH+ berücksichtigt)
@@ -372,9 +372,71 @@ function setView(name){
 }
 
 // ---------- TODAY ----------
+let editingPeriod = null; // {startISO,endISO} currently being edited
+
+function normalizeRange(fromISO, toISO){
+  if (!fromISO || !toISO) return null;
+  let a = parseISO(fromISO);
+  let b = parseISO(toISO);
+  if (a > b){ const tmp = a; a = b; b = tmp; }
+  return { a, b, fromISO: iso(a), toISO: iso(b) };
+}
+
+function addBleedRange(fromISO, toISO){
+  const r = normalizeRange(fromISO, toISO);
+  if (!r) return;
+
+  const days = loadBleedDays();
+  const set = new Set(days);
+  const span = clamp(diffDays(r.a, r.b), 0, 400); // safety
+  for (let i=0;i<=span;i++) set.add(iso(addDays(r.a, i)));
+
+  const filled = fillSmallGaps([...set].sort());
+  saveBleedDays(filled);
+}
+
+function removeBleedRange(fromISO, toISO){
+  const r = normalizeRange(fromISO, toISO);
+  if (!r) return;
+
+  const span = clamp(diffDays(r.a, r.b), 0, 400);
+  const remove = new Set();
+  for (let i=0;i<=span;i++) remove.add(iso(addDays(r.a, i)));
+
+  const filtered = loadBleedDays().filter(d => !remove.has(d));
+  saveBleedDays(filtered);
+}
+
+function replaceBleedRange(oldFromISO, oldToISO, newFromISO, newToISO){
+  removeBleedRange(oldFromISO, oldToISO);
+  addBleedRange(newFromISO, newToISO);
+}
+
+function openEditPeriod(startISO, endISO){
+  editingPeriod = { startISO, endISO };
+  const box = document.getElementById("editPeriodBox");
+  if (!box) return;
+  box.classList.remove("hidden");
+  document.getElementById("editFrom").value = startISO;
+  document.getElementById("editTo").value = endISO;
+  box.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function closeEditPeriod(){
+  editingPeriod = null;
+  const box = document.getElementById("editPeriodBox");
+  if (box) box.classList.add("hidden");
+}
+
 function rerenderToday(){
   const todayISO = iso(new Date());
   document.getElementById("bleedDate").value = todayISO;
+
+  // defaults for range inputs
+  const fromEl = document.getElementById("bleedFrom");
+  const toEl = document.getElementById("bleedTo");
+  if (fromEl && !fromEl.value) fromEl.value = todayISO;
+  if (toEl && !toEl.value) toEl.value = todayISO;
 
   const days = loadBleedDays();
   const has = days.includes(todayISO);
@@ -387,19 +449,48 @@ function rerenderToday(){
   const list = document.getElementById("periodsList");
   if (!periods.length){
     list.innerHTML = '<p class="muted">Noch keine Blutungstage eingetragen.</p>';
+    closeEditPeriod();
     return;
   }
+
   list.innerHTML = periods.slice(0, 12).map((p) => {
+    const startISO = iso(p.start);
+    const endISO = iso(p.end);
     const len = diffDays(p.start, p.end) + 1;
     return `
       <div class="row">
-        <div>
+        <div style="flex:1;">
           <div class="strong">${formatDateDE(p.start)} – ${formatDateDE(p.end)}</div>
-          <div class="meta">Dauer: ${len} Tage</div>
+          <div class="muted" style="font-size:12px;margin-top:2px;">Dauer: ${len} Tage</div>
+        </div>
+        <div class="rowBtns" style="justify-content:flex-end;">
+          <button class="btn" type="button" data-edit-period="${startISO}|${endISO}">Bearbeiten</button>
+          <button class="btn danger" type="button" data-del-period="${startISO}|${endISO}">Löschen</button>
         </div>
       </div>
     `;
   }).join("");
+
+  // bind buttons
+  list.querySelectorAll("[data-edit-period]").forEach((b)=>{
+    b.addEventListener("click", ()=>{
+      const raw = b.getAttribute("data-edit-period") || "";
+      const [s,e] = raw.split("|");
+      if (s && e) openEditPeriod(s,e);
+    });
+  });
+
+  list.querySelectorAll("[data-del-period]").forEach((b)=>{
+    b.addEventListener("click", ()=>{
+      const raw = b.getAttribute("data-del-period") || "";
+      const [s,e] = raw.split("|");
+      if (!s || !e) return;
+      if (!confirm(`Periode ${formatDateDE(s)} – ${formatDateDE(e)} wirklich löschen?`)) return;
+      removeBleedRange(s,e);
+      if (editingPeriod && editingPeriod.startISO===s && editingPeriod.endISO===e) closeEditPeriod();
+      rerenderToday(); rerenderCalendar(); rerenderStats();
+    });
+  });
 }
 
 // ---------- CALENDAR ----------
@@ -413,9 +504,9 @@ function renderNoteIcon(btn){
   svg.setAttribute("viewBox","0 0 24 24");
   svg.classList.add("dayNoteIcon");
   svg.innerHTML = `
-    <path fill="rgba(106,169,255,0.95)" d="M6 2h9l5 5v15a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"/>
-    <path fill="rgba(18,20,26,0.85)" d="M15 2v5h5z"/>
-    <path fill="rgba(18,20,26,0.65)" d="M7 10h10v2H7zm0 4h10v2H7zm0 4h7v2H7z"/>
+    <path fill="rgba(201,166,255,0.95)" d="M6 2h9l5 5v15a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"/>
+    <path fill="rgba(15,12,26,0.85)" d="M15 2v5h5z"/>
+    <path fill="rgba(15,12,26,0.65)" d="M7 10h10v2H7zm0 4h10v2H7zm0 4h7v2H7z"/>
   `;
   btn.appendChild(svg);
 }
@@ -483,7 +574,7 @@ function rerenderCalendar(){
   const nextOvISOs = model.ovulationDaysISO.slice(0,6);
   const nextOvBadges = nextOvISOs.map(d=>formatDateDE(d));
 
-  const pregnancyRows = nextOvISOs.map((dISO, idx)=>{
+  const pregnancyData = nextOvISOs.map((dISO, idx)=>{
     const ovuDate = parseISO(dISO);
     const et = computeETFromOvulation(ovuDate);
     const w = getWesternSign(et);
@@ -491,16 +582,47 @@ function rerenderCalendar(){
     const g = combinedParentGrade(w.name, settings.motherSign, settings.fatherSign);
     const adj = (w.adj||[]).slice(0,3).join(", ");
     const gTxt = g.grade ? `${g.grade}${g.detail?` (${g.detail})`:""}` : "–";
-    return `
-      <tr>
-        <td style="padding:8px;border-bottom:1px solid rgba(255,255,255,0.08);">${idx===0?"(aktuell)":""} ${formatDateDE(ovuDate)}</td>
-        <td style="padding:8px;border-bottom:1px solid rgba(255,255,255,0.08);">${formatDateDE(et)}</td>
-        <td style="padding:8px;border-bottom:1px solid rgba(255,255,255,0.08);">${escapeHtml(w.name)}${adj?` <span class=\"muted\" style=\"font-size:12px;\">(${escapeHtml(adj)})</span>`:""}</td>
-        <td style="padding:8px;border-bottom:1px solid rgba(255,255,255,0.08);">${escapeHtml(cz.animal)}</td>
-        <td style="padding:8px;border-bottom:1px solid rgba(255,255,255,0.08);">${gTxt}</td>
-      </tr>
+    return {
+      idx,
+      ovu: `${idx===0?"(aktuell) ":""}${formatDateDE(ovuDate)}`,
+      et: formatDateDE(et),
+      sign: `${escapeHtml(w.name)}${adj?` <span class="muted" style="font-size:12px;">(${escapeHtml(adj)})</span>`:""}`,
+      chinese: escapeHtml(cz.animal),
+      match: gTxt,
+      signPlain: w.name,
+      adjPlain: adj,
+    };
+  });
+
+  const pregnancyGrid = (()=>{
+    const head = `
+      <div class="th">Eisprung</div>
+      <div class="th">ET (≈)</div>
+      <div class="th">Sternzeichen</div>
+      <div class="th">Chinesisch</div>
+      <div class="th">Match (1–6)</div>
     `;
-  }).join("");
+
+    const desktopCells = pregnancyData.map(r=>`
+      <div class="td">${r.ovu}</div>
+      <div class="td">${r.et}</div>
+      <div class="td">${r.sign}</div>
+      <div class="td">${r.chinese}</div>
+      <div class="td">${r.match}</div>
+    `).join("");
+
+    const mobileCards = pregnancyData.map(r=>`
+      <div class="rowCard">
+        <div class="kv"><div class="k">Eisprung</div><div class="v">${r.ovu}</div></div>
+        <div class="kv"><div class="k">ET (≈)</div><div class="v">${r.et}</div></div>
+        <div class="kv"><div class="k">Sternzeichen</div><div class="v">${escapeHtml(r.signPlain)}${r.adjPlain?` <span class="muted" style="font-size:12px;">(${escapeHtml(r.adjPlain)})</span>`:""}</div></div>
+        <div class="kv"><div class="k">Chinesisch</div><div class="v">${r.chinese}</div></div>
+        <div class="kv"><div class="k">Match</div><div class="v">${r.match}</div></div>
+      </div>
+    `).join("");
+
+    return `<div class="tableGrid" style="margin-top:8px;">${head}${desktopCells}${mobileCards}</div>`;
+  })();
   const ovReason = model.currentOvulation?.reasonText ? ` • ${escapeHtml(model.currentOvulation.reasonText)}` : "";
   summary.innerHTML = `
     <div class="grid2">
@@ -518,20 +640,7 @@ function rerenderCalendar(){
       </div>
       <div class="card inner" style="grid-column:1/-1;">
         <div class="muted">Wenn Schwangerschaft im jeweiligen Zyklus (ET & Sternzeichen nach Eisprung)</div>
-        <div style="overflow:auto;margin-top:6px;">
-          <table style="width:100%;border-collapse:collapse;min-width:640px;">
-            <thead>
-              <tr>
-                <th style="text-align:left;padding:8px;border-bottom:1px solid rgba(255,255,255,0.10);">Eisprung</th>
-                <th style="text-align:left;padding:8px;border-bottom:1px solid rgba(255,255,255,0.10);">ET (≈)</th>
-                <th style="text-align:left;padding:8px;border-bottom:1px solid rgba(255,255,255,0.10);">Sternzeichen</th>
-                <th style="text-align:left;padding:8px;border-bottom:1px solid rgba(255,255,255,0.10);">Chinesisch</th>
-                <th style="text-align:left;padding:8px;border-bottom:1px solid rgba(255,255,255,0.10);">Match (1–6)</th>
-              </tr>
-            </thead>
-            <tbody>${pregnancyRows}</tbody>
-          </table>
-        </div>
+        ${pregnancyGrid}
         <div class="muted" style="margin-top:8px;font-size:12px;">
           Match ist eine einfache Element-Heuristik (Feuer/Luft & Erde/Wasser tendenziell besser). Für den Match-Wert bitte Mutter/Vater-Sternzeichen in den Einstellungen setzen.
         </div>
@@ -542,34 +651,85 @@ function rerenderCalendar(){
 
 // ---------- sharing ----------
 async function shareSummaryAsImage(){
-  const el = document.getElementById("summary");
-  if (!el) throw new Error("Zusammenfassung nicht gefunden.");
-  if (!el.innerText.trim()) throw new Error("Noch keine Zusammenfassung zum Teilen.");
+  const summaryEl = document.getElementById("summary");
+  if (!summaryEl) throw new Error("Zusammenfassung nicht gefunden.");
+  if (!summaryEl.innerText.trim()) throw new Error("Noch keine Zusammenfassung zum Teilen.");
 
-  const h2 = document.getElementById("monthTitle")?.innerText?.trim() || "";
-  const title = h2 ? `Periodentracker – ${h2}` : "Periodentracker";
+  const month = document.getElementById("monthTitle")?.innerText?.trim() || "";
+  const title = month ? `Lunacy – ${month}` : "Lunacy";
 
   const h2c = (window.html2canvas || window.html2Canvas);
   if (typeof h2c !== "function"){
     throw new Error("Screenshot-Bibliothek fehlt (html2canvas). Prüfe Internet/Adblock.");
   }
 
+  // Build a dedicated share card so the image always contains everything (incl. logo + month title)
+  const wrap = document.createElement("div");
+  wrap.setAttribute("aria-hidden","true");
+  wrap.style.position = "fixed";
+  wrap.style.left = "-99999px";
+  wrap.style.top = "0";
+  wrap.style.width = "980px";
+  wrap.style.padding = "18px";
+  wrap.style.border = "1px solid rgba(255,255,255,0.12)";
+  wrap.style.borderRadius = "22px";
+  wrap.style.background = getComputedStyle(document.body).background;
+  wrap.style.color = getComputedStyle(document.body).color;
+
+  const head = document.createElement("div");
+  head.style.display = "flex";
+  head.style.alignItems = "center";
+  head.style.gap = "12px";
+  head.style.marginBottom = "12px";
+
+  const img = document.createElement("img");
+  img.src = "logo.png";
+  img.alt = "Lunacy";
+  img.style.width = "44px";
+  img.style.height = "44px";
+  img.style.borderRadius = "16px";
+  img.style.border = "1px solid rgba(255,255,255,0.20)";
+
+  const tbox = document.createElement("div");
+  const t1 = document.createElement("div");
+  t1.textContent = "Lunacy";
+  t1.style.fontWeight = "900";
+  t1.style.fontSize = "18px";
+  const t2 = document.createElement("div");
+  t2.textContent = month || "";
+  t2.style.opacity = "0.78";
+  t2.style.fontSize = "13px";
+  tbox.appendChild(t1);
+  tbox.appendChild(t2);
+
+  head.appendChild(img);
+  head.appendChild(tbox);
+
+  const cloned = summaryEl.cloneNode(true);
+  cloned.style.margin = "0";
+
+  wrap.appendChild(head);
+  wrap.appendChild(cloned);
+  document.body.appendChild(wrap);
+
   // Render high-ish res while keeping file size reasonable
-  const canvas = await h2c(el, {
-    backgroundColor: getComputedStyle(document.body).backgroundColor || null,
+  const canvas = await h2c(wrap, {
+    backgroundColor: null,
     scale: Math.min(2, window.devicePixelRatio || 1),
     useCORS: true,
   });
 
+  document.body.removeChild(wrap);
+
   const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png", 0.92));
   if (!blob) throw new Error("Konnte Bild nicht erzeugen.");
 
-  const filename = `periodentracker_${iso(new Date())}.png`;
+  const filename = `lunacy_${iso(new Date())}.png`;
   const file = new File([blob], filename, { type: "image/png" });
 
   const canShareFiles = !!(navigator.share && navigator.canShare && navigator.canShare({ files: [file] }));
   if (canShareFiles){
-    await navigator.share({ title, text: "Nächste Termine (≈)", files: [file] });
+    await navigator.share({ title, text: "Zyklus-Zusammenfassung (≈)", files: [file] });
     return;
   }
 
@@ -682,31 +842,38 @@ function rerenderStats(){
     const bleedLen = diffDays(cur.start, cur.end) + 1;
 
     const ov = computeOvulationForCycle(cur.start, next.start, model, notesByDate);
-    rows.push(`
-      <tr>
-        <td style="padding:8px;border-bottom:1px solid rgba(255,255,255,0.08);">${formatDateDE(cur.start)}</td>
-        <td style="padding:8px;border-bottom:1px solid rgba(255,255,255,0.08);">${bleedLen}</td>
-        <td style="padding:8px;border-bottom:1px solid rgba(255,255,255,0.08);">${(cycleLen>=15 && cycleLen<=60)?cycleLen:"–"}</td>
-        <td style="padding:8px;border-bottom:1px solid rgba(255,255,255,0.08);">ZT ${ov.zt} (${formatDateDE(ov.ovuDate)})${ov.reasonText ? " • "+escapeHtml(ov.reasonText) : ""}</td>
-      </tr>
-    `);
+    rows.push({
+      start: formatDateDE(cur.start),
+      bleedLen: String(bleedLen),
+      cycleLen: String((cycleLen>=15 && cycleLen<=60)?cycleLen:"–"),
+      ov: `ZT ${ov.zt} (${formatDateDE(ov.ovuDate)})${ov.reasonText ? " • "+escapeHtml(ov.reasonText) : ""}`,
+    });
   }
 
-  last12.innerHTML = `
-    <div style="overflow:auto;">
-      <table style="width:100%;border-collapse:collapse;">
-        <thead>
-          <tr>
-            <th style="text-align:left;padding:8px;border-bottom:1px solid rgba(255,255,255,0.10);">Start</th>
-            <th style="text-align:left;padding:8px;border-bottom:1px solid rgba(255,255,255,0.10);">Periode (Tage)</th>
-            <th style="text-align:left;padding:8px;border-bottom:1px solid rgba(255,255,255,0.10);">Zyklus (Tage)</th>
-            <th style="text-align:left;padding:8px;border-bottom:1px solid rgba(255,255,255,0.10);">Eisprung (Zyklustag)</th>
-          </tr>
-        </thead>
-        <tbody>${rows.join("")}</tbody>
-      </table>
-    </div>
+  const head = `
+    <div class="th">Start</div>
+    <div class="th">Periode (Tage)</div>
+    <div class="th">Zyklus (Tage)</div>
+    <div class="th">Eisprung (Zyklustag)</div>
   `;
+
+  const desktopCells = rows.map(r=>`
+    <div class="td">${r.start}</div>
+    <div class="td">${r.bleedLen}</div>
+    <div class="td">${r.cycleLen}</div>
+    <div class="td">${r.ov}</div>
+  `).join("");
+
+  const mobileCards = rows.map(r=>`
+    <div class="rowCard">
+      <div class="kv"><div class="k">Start</div><div class="v">${r.start}</div></div>
+      <div class="kv"><div class="k">Periode</div><div class="v">${r.bleedLen} Tage</div></div>
+      <div class="kv"><div class="k">Zyklus</div><div class="v">${r.cycleLen}</div></div>
+      <div class="kv"><div class="k">Eisprung</div><div class="v">${r.ov}</div></div>
+    </div>
+  `).join("");
+
+  last12.innerHTML = `<div class="tableGrid" style="grid-template-columns:1fr 1fr 1fr 2fr;">${head}${desktopCells}${mobileCards}</div>`;
 }
 
 // ---------- NOTES MODAL ----------
@@ -841,7 +1008,7 @@ function exportAllToCSV(){
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
-  a.download = `periodentracker_export_${iso(new Date())}.csv`;
+  a.download = `lunacy_export_${iso(new Date())}.csv`;
   document.body.appendChild(a);
   a.click();
   URL.revokeObjectURL(a.href);
@@ -969,6 +1136,28 @@ function init(){
     addBleedDay(d);
     rerenderToday(); rerenderCalendar(); rerenderStats();
   });
+
+  // range add (von–bis)
+  document.getElementById("bleedAddRangeBtn")?.addEventListener("click", ()=>{
+    const f = document.getElementById("bleedFrom")?.value;
+    const t = document.getElementById("bleedTo")?.value;
+    if (!f || !t){ alert("Bitte ‘Von’ und ‘Bis’ wählen."); return; }
+    addBleedRange(f, t);
+    closeEditPeriod();
+    rerenderToday(); rerenderCalendar(); rerenderStats();
+  });
+
+  // edit existing period
+  document.getElementById("editSaveBtn")?.addEventListener("click", ()=>{
+    if (!editingPeriod) return;
+    const f = document.getElementById("editFrom")?.value;
+    const t = document.getElementById("editTo")?.value;
+    if (!f || !t){ alert("Bitte ‘Von’ und ‘Bis’ wählen."); return; }
+    replaceBleedRange(editingPeriod.startISO, editingPeriod.endISO, f, t);
+    closeEditPeriod();
+    rerenderToday(); rerenderCalendar(); rerenderStats();
+  });
+  document.getElementById("editCancelBtn")?.addEventListener("click", ()=> closeEditPeriod());
 
   // calendar month
   document.getElementById("prevBtn").addEventListener("click", ()=>{

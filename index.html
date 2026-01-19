@@ -3,13 +3,20 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Periodentracker</title>
+  <title>Lunacy</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
   <header class="topbar">
-    <h1>Periodentracker</h1>
-    <nav class="nav">
+    <div class="brand" aria-label="Lunacy">
+      <img src="logo.png" class="logoImg" alt="Lunacy Logo" />
+      <div class="brandText">
+        <div class="title">Lunacy</div>
+        <div class="subtitle">Periodentracker • lokal auf deinem Gerät</div>
+      </div>
+    </div>
+
+    <nav class="nav" aria-label="Navigation">
       <button class="btn" data-view="today">Heute</button>
       <button class="btn" data-view="calendar">Kalender</button>
       <button class="btn" data-view="stats">Statistiken</button>
@@ -21,13 +28,13 @@
     <!-- TODAY / QUICK LOG -->
     <section class="card view" id="view-today">
       <h2>Heute</h2>
-      <p class="muted">Schnell-Logging: „Heute Blutung“ und Notizen. Du kannst auch rückwirkend eintragen.</p>
+      <p class="muted">Schnell-Logging: „Heute Blutung“ und Notizen. Du kannst auch rückwirkend eintragen – oder direkt einen Zeitraum setzen.</p>
 
       <div class="grid2">
         <button class="btn primary" id="bleedTodayBtn" type="button">Heute Blutung: hinzufügen</button>
 
         <div class="card inner">
-          <div class="muted">Rückwirkend</div>
+          <div class="muted">Rückwirkend (ein Tag)</div>
           <div class="grid2" style="margin-top:8px;">
             <input type="date" id="bleedDate" />
             <button class="btn" id="bleedAddBtn" type="button">Blutung eintragen</button>
@@ -38,11 +45,45 @@
         </div>
       </div>
 
-      <h3 style="margin-top:14px;">Letzte Perioden (automatisch erkannt)</h3>
+      <div class="split" style="margin-top:12px;">
+        <div class="card inner">
+          <div class="strong">Zeitraum eintragen</div>
+          <div class="muted" style="margin-top:4px;font-size:12px;">Für alte Einträge: „von–bis“ statt jeden Tag einzeln.</div>
+          <div class="grid3" style="margin-top:10px;">
+            <label>Von
+              <input type="date" id="bleedFrom" />
+            </label>
+            <label>Bis
+              <input type="date" id="bleedTo" />
+            </label>
+            <button class="btn" id="bleedAddRangeBtn" type="button" style="align-self:end;">Zeitraum speichern</button>
+          </div>
+          <div class="muted" style="margin-top:8px;font-size:12px;">Du kannst Zeiträume später bearbeiten oder löschen (siehe Liste unten).</div>
+        </div>
+
+        <div class="card inner hidden" id="editPeriodBox" aria-live="polite">
+          <div class="strong">Periode bearbeiten</div>
+          <div class="muted" style="margin-top:4px;font-size:12px;">Ändert die Blutungstage dieser Periode.</div>
+          <div class="grid3" style="margin-top:10px;">
+            <label>Von
+              <input type="date" id="editFrom" />
+            </label>
+            <label>Bis
+              <input type="date" id="editTo" />
+            </label>
+            <div class="rowBtns" style="align-self:end;justify-content:flex-end;">
+              <button class="btn primary" id="editSaveBtn" type="button">Speichern</button>
+              <button class="btn" id="editCancelBtn" type="button">Abbrechen</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <h3 style="margin-top:14px;">Letzte Perioden (aus Blutungstagen)</h3>
       <div id="periodsList" class="list"></div>
 
       <div class="muted" style="margin-top:12px;font-size:12px;">
-        Hinweis: Du kannst weiterhin Notizen (LH, Schmerz etc.) pro Tag im Kalender hinzufügen.
+        Hinweis: Notizen (LH, Schmerz etc.) kannst du pro Tag im Kalender hinzufügen.
       </div>
     </section>
 
@@ -58,10 +99,11 @@
       </div>
 
       <div class="legend">
-        <span class="pill period">Periode (aus Blutung)</span>
+        <span class="pill period">Periode</span>
         <span class="pill fertile">Fruchtbar (≈)</span>
         <span class="pill ovu">Eisprung (≈)</span>
         <span class="pill predicted">Nächste Perioden (≈, 6 Zyklen)</span>
+        <span class="pill notes">Notiz</span>
       </div>
 
       <div class="calendar" id="calendar"></div>
