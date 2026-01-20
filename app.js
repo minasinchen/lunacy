@@ -764,116 +764,59 @@ async function shareSummaryAsImage(){
 
   const h2c = (window.html2canvas || window.html2Canvas);
   if (typeof h2c !== "function"){
-    throw new Error("html2canvas fehlt.");
+    throw new Error("Screenshot-Bibliothek fehlt (html2canvas). Prüfe Internet/Adblock.");
   }
 
-  /* -------------------------------
-     SHARE WRAP (Cosmic Card)
-  -------------------------------- */
+  // Build a dedicated share card so the image always contains everything (incl. logo + month title)
   const wrap = document.createElement("div");
   wrap.setAttribute("aria-hidden","true");
   wrap.style.position = "fixed";
   wrap.style.left = "-99999px";
   wrap.style.top = "0";
   wrap.style.width = "980px";
-  wrap.style.padding = "32px";
-  wrap.style.borderRadius = "28px";
-  wrap.style.color = "#fbf7ff";
-  wrap.style.fontFamily = "ui-sans-serif, system-ui";
-  wrap.style.background =
-    "radial-gradient(900px 500px at 20% -10%, rgba(201,166,255,0.25), transparent 60%),"+
-    "radial-gradient(700px 500px at 90% 0%, rgba(247,217,120,0.18), transparent 55%),"+
-    "linear-gradient(180deg, #07051a, #140f33)";
+  wrap.style.padding = "18px";
+  wrap.style.border = "1px solid rgba(255,255,255,0.12)";
+  wrap.style.borderRadius = "22px";
+  wrap.style.background = getComputedStyle(document.body).background;
+  wrap.style.color = getComputedStyle(document.body).color;
 
-  /* -------------------------------
-     STAR CANVAS
-  -------------------------------- */
-  const stars = document.createElement("canvas");
-  stars.width = 980;
-  stars.height = 520;
-  stars.style.position = "absolute";
-  stars.style.inset = "0";
-  stars.style.zIndex = "0";
-
-  const sctx = stars.getContext("2d");
-  sctx.fillStyle = "transparent";
-  sctx.fillRect(0,0,stars.width,stars.height);
-
-  for (let i=0;i<140;i++){
-    const x = Math.random()*stars.width;
-    const y = Math.random()*stars.height;
-    const r = Math.random()*1.4 + 0.2;
-    const a = Math.random()*0.8 + 0.2;
-    sctx.beginPath();
-    sctx.arc(x,y,r,0,Math.PI*2);
-    sctx.fillStyle = `rgba(255,255,255,${a})`;
-    sctx.fill();
-  }
-
-  wrap.appendChild(stars);
-
-  /* -------------------------------
-     HEADER (Logo + Title)
-  -------------------------------- */
   const head = document.createElement("div");
   head.style.display = "flex";
   head.style.alignItems = "center";
-  head.style.gap = "16px";
-  head.style.marginBottom = "20px";
-  head.style.position = "relative";
-  head.style.zIndex = "1";
+  head.style.gap = "12px";
+  head.style.marginBottom = "12px";
 
   const img = document.createElement("img");
   img.src = "logo.png";
   img.alt = "Lunacy";
-  img.style.width = "56px";
-  img.style.height = "56px";
-  img.style.borderRadius = "18px";
-  img.style.border = "1px solid rgba(255,255,255,0.25)";
-  img.style.boxShadow = "0 0 24px rgba(247,217,120,0.35)";
+  img.style.width = "44px";
+  img.style.height = "44px";
+  img.style.borderRadius = "16px";
+  img.style.border = "1px solid rgba(255,255,255,0.20)";
 
   const tbox = document.createElement("div");
   const t1 = document.createElement("div");
   t1.textContent = "Lunacy";
   t1.style.fontWeight = "900";
-  t1.style.fontSize = "22px";
-  t1.style.color = "#f7d978";
-
+  t1.style.fontSize = "18px";
   const t2 = document.createElement("div");
   t2.textContent = month || "";
-  t2.style.opacity = "0.8";
-  t2.style.fontSize = "14px";
-
+  t2.style.opacity = "0.78";
+  t2.style.fontSize = "13px";
   tbox.appendChild(t1);
   tbox.appendChild(t2);
 
   head.appendChild(img);
   head.appendChild(tbox);
 
-  /* -------------------------------
-     CONTENT CARD
-  -------------------------------- */
-  const card = document.createElement("div");
-  card.style.position = "relative";
-  card.style.zIndex = "1";
-  card.style.background = "rgba(24,16,52,0.88)";
-  card.style.border = "1px solid rgba(255,255,255,0.14)";
-  card.style.borderRadius = "22px";
-  card.style.padding = "18px";
-  card.style.boxShadow = "0 20px 60px rgba(0,0,0,0.45)";
-
   const cloned = summaryEl.cloneNode(true);
   cloned.style.margin = "0";
 
-  card.appendChild(cloned);
-
   wrap.appendChild(head);
-  wrap.appendChild(card);
+  wrap.appendChild(cloned);
   document.body.appendChild(wrap);
 
-  /* -------------------------------
-     RENDER IMAGE
-  -------------------------------- */
+  // Render high-ish res while keeping file size reasonable
   const canvas = await h2c(wrap, {
     backgroundColor: null,
     scale: Math.min(2, window.devicePixelRatio || 1),
@@ -882,27 +825,30 @@ async function shareSummaryAsImage(){
 
   document.body.removeChild(wrap);
 
-  const blob = await new Promise(res => canvas.toBlob(res, "image/png", 0.92));
-  if (!blob) throw new Error("Bild konnte nicht erzeugt werden.");
+  const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png", 0.92));
+  if (!blob) throw new Error("Konnte Bild nicht erzeugen.");
 
   const filename = `lunacy_${iso(new Date())}.png`;
   const file = new File([blob], filename, { type: "image/png" });
 
-  if (navigator.share && navigator.canShare?.({ files:[file] })){
-    await navigator.share({ title, files:[file] });
+  const canShareFiles = !!(navigator.share && navigator.canShare && navigator.canShare({ files: [file] }));
+  if (canShareFiles){
+    await navigator.share({ title, text: "Zyklus-Zusammenfassung (≈)", files: [file] });
     return;
   }
 
+  // fallback: download
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
   a.download = filename;
   document.body.appendChild(a);
   a.click();
-  URL.revokeObjectURL(url);
-  document.body.removeChild(a);
-
-  alert("Dein Browser unterstützt Teilen nicht direkt – Bild wurde heruntergeladen.");
+  setTimeout(()=>{
+    URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+  }, 0);
+  alert("Dein Gerät/Browser unterstützt das direkte Teilen nicht. Das Bild wurde stattdessen heruntergeladen.");
 }
 
 // ---------- STATS ----------
@@ -1036,6 +982,144 @@ function rerenderStats(){
 
 // ---------- NOTES MODAL ----------
 let currentNotesDate = null;
+let editingNoteId = null; // when set: we are editing an existing note
+
+// Per note type: which subfields should be shown + which result options exist.
+const NOTE_TYPE_CONFIG = {
+  LH: {
+    showResult: true,
+    resultOptions: ["negativ","positiv","unsicher"],
+    showSide: false,
+    showIntensity: false,
+  },
+  HCG: {
+    showResult: true,
+    resultOptions: ["negativ","positiv","unsicher"],
+    showSide: false,
+    showIntensity: false,
+  },
+  MITTELSCHMERZ: {
+    showResult: false,
+    resultOptions: [],
+    showSide: true,
+    showIntensity: true,
+  },
+  ZERVIX: {
+    showResult: true,
+    // Simple & common categories. "fadenziehend" is important for your ovulation heuristic.
+    resultOptions: ["trocken","klebrig","cremig","wässrig","fadenziehend"],
+    showSide: false,
+    showIntensity: false,
+  },
+  SCHMERZ: {
+    showResult: false,
+    resultOptions: [],
+    showSide: true,
+    showIntensity: true,
+  },
+  SYMPTOM: {
+    showResult: false,
+    resultOptions: [],
+    showSide: false,
+    showIntensity: false,
+  },
+};
+
+function setSelectOptions(selectEl, values, keepValue){
+  if (!selectEl) return;
+  const cur = keepValue ? selectEl.value : "";
+  const opts = ["", ...(values||[])];
+  selectEl.innerHTML = opts.map(v => {
+    const label = v ? v : "–";
+    const val = v;
+    return `<option value="${escapeHtml(val)}">${escapeHtml(label)}</option>`;
+  }).join("");
+  if (keepValue && opts.includes(cur)) selectEl.value = cur;
+  else selectEl.value = "";
+}
+
+function updateNoteFormFields(type){
+  const cfg = NOTE_TYPE_CONFIG[type] || NOTE_TYPE_CONFIG.SYMPTOM;
+
+  const resultEl = document.getElementById("noteResult");
+  const sideEl = document.getElementById("noteSide");
+  const intEl = document.getElementById("noteIntensity");
+
+  const resultLabel = resultEl?.closest("label") || null;
+  const sideLabel = sideEl?.closest("label") || null;
+  const intLabel = intEl?.closest("label") || null;
+
+  if (resultLabel){
+    resultLabel.classList.toggle("hidden", !cfg.showResult);
+    if (cfg.showResult){
+      setSelectOptions(resultEl, cfg.resultOptions, true);
+    } else {
+      // keep DOM stable, but clear
+      setSelectOptions(resultEl, [], false);
+    }
+  }
+
+  if (sideLabel){
+    sideLabel.classList.toggle("hidden", !cfg.showSide);
+    if (!cfg.showSide && sideEl) sideEl.value = "";
+  }
+
+  if (intLabel){
+    intLabel.classList.toggle("hidden", !cfg.showIntensity);
+    if (!cfg.showIntensity && intEl) intEl.value = 0;
+  }
+}
+
+function setNoteEditingState(noteOrNull){
+  const submitBtn = document.querySelector("#noteForm button[type='submit']");
+  const clearBtn = document.getElementById("noteClearBtn");
+  if (noteOrNull){
+    editingNoteId = noteOrNull.id;
+    if (submitBtn) submitBtn.textContent = "Änderungen speichern";
+    if (clearBtn) clearBtn.textContent = "Abbrechen";
+  } else {
+    editingNoteId = null;
+    if (submitBtn) submitBtn.textContent = "Notiz speichern";
+    if (clearBtn) clearBtn.textContent = "Eingaben leeren";
+  }
+}
+
+function startEditNote(noteId){
+  if (!currentNotesDate) return;
+  const notesByDate = loadNotesByDate();
+  const notes = notesByDate[currentNotesDate] || [];
+  const n = notes.find(x => x && x.id === noteId);
+  if (!n) return;
+
+  // Fill form
+  const typeEl = document.getElementById("noteType");
+  const resultEl = document.getElementById("noteResult");
+  const sideEl = document.getElementById("noteSide");
+  const intEl = document.getElementById("noteIntensity");
+  const textEl = document.getElementById("noteText");
+
+  if (typeEl) typeEl.value = n.type || "SYMPTOM";
+  updateNoteFormFields(typeEl?.value || n.type || "SYMPTOM");
+
+  if (resultEl) resultEl.value = n.result || "";
+  if (sideEl) sideEl.value = n.side || "";
+  if (intEl) intEl.value = (typeof n.intensity === "number") ? n.intensity : 0;
+  if (textEl) textEl.value = n.text || "";
+
+  setNoteEditingState(n);
+
+  // Scroll form into view (useful on mobile)
+  document.getElementById("noteForm")?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function cancelEditNote(){
+  setNoteEditingState(null);
+  document.getElementById("noteForm")?.reset();
+  document.getElementById("noteIntensity").value = 0;
+  // keep correct field visibility for the current type selection
+  const type = document.getElementById("noteType")?.value || "SYMPTOM";
+  updateNoteFormFields(type);
+}
 function labelForType(t){
   return ({ "LH":"LH-Test","HCG":"Schwangerschaftstest","MITTELSCHMERZ":"Mittelschmerz","ZERVIX":"Zervixschleim","SCHMERZ":"Schmerz","SYMPTOM":"Symptom / Notiz" }[t]||t);
 }
@@ -1043,11 +1127,14 @@ function openNotes(dateISO){
   currentNotesDate = dateISO;
   document.getElementById("notesTitle").textContent = formatDateDE(dateISO);
   document.getElementById("notesModal").classList.remove("hidden");
+  // reset form state when opening
+  cancelEditNote();
   renderNotesList();
 }
 function closeNotes(){
   document.getElementById("notesModal").classList.add("hidden");
   currentNotesDate = null;
+  setNoteEditingState(null);
 }
 
 function renderNotesList(){
@@ -1070,10 +1157,21 @@ function renderNotesList(){
           ${n.text?`<div style="margin-top:6px;">${escapeHtml(n.text)}</div>`:""}
           ${badges.length?`<div class="badges">${badges.map(b=>`<span class="badge">${escapeHtml(b)}</span>`).join("")}</div>`:""}
         </div>
-        <button class="btn small" type="button" data-del-note="${n.id}">Löschen</button>
+        <div class="rowBtns" style="justify-content:flex-end;">
+          <button class="btn small" type="button" data-edit-note="${n.id}">Bearbeiten</button>
+          <button class="btn small" type="button" data-del-note="${n.id}">Löschen</button>
+        </div>
       </div>
     `;
   }).join("");
+
+  list.querySelectorAll("[data-edit-note]").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      const id = btn.getAttribute("data-edit-note");
+      if (!id) return;
+      startEditNote(id);
+    });
+  });
 
   list.querySelectorAll("[data-del-note]").forEach(btn=>{
     btn.addEventListener("click", ()=>{
@@ -1081,6 +1179,7 @@ function renderNotesList(){
       const notesByDate = loadNotesByDate();
       notesByDate[currentNotesDate] = (notesByDate[currentNotesDate]||[]).filter(x=>x.id!==id);
       saveNotesByDate(notesByDate);
+      if (editingNoteId === id) cancelEditNote();
       renderNotesList();
       rerenderCalendar();
       rerenderStats();
@@ -1337,26 +1436,60 @@ function init(){
   document.querySelector("#notesModal [data-close='1']").addEventListener("click", closeNotes);
   document.getElementById("notesClose").addEventListener("click", closeNotes);
 
+  // dynamic note subfields
+  document.getElementById("noteType")?.addEventListener("change", (ev)=>{
+    updateNoteFormFields(ev.target.value);
+  });
+  // initial config for modal (in case user opens quickly)
+  updateNoteFormFields(document.getElementById("noteType")?.value || "LH");
+
   // note save
   document.getElementById("noteForm").addEventListener("submit", (ev)=>{
     ev.preventDefault();
     if (!currentNotesDate) return;
 
     const type = document.getElementById("noteType").value;
-    const result = document.getElementById("noteResult").value;
-    const side = document.getElementById("noteSide").value;
-    const intensity = clamp(Number(document.getElementById("noteIntensity").value||0), 0, 10);
-    const text = (document.getElementById("noteText").value||"").trim();
+    // Ensure visibility + options are correct even if something changed programmatically
+    updateNoteFormFields(type);
 
-    const note = { id: uid(), type, result: result||null, side: side||null, intensity, text: text||null, createdAt: new Date().toISOString() };
+    const cfg = NOTE_TYPE_CONFIG[type] || NOTE_TYPE_CONFIG.SYMPTOM;
+    const result = cfg.showResult ? document.getElementById("noteResult").value : "";
+    const side = cfg.showSide ? document.getElementById("noteSide").value : "";
+    const intensity = cfg.showIntensity ? clamp(Number(document.getElementById("noteIntensity").value||0), 0, 10) : 0;
+    const text = (document.getElementById("noteText").value||"").trim();
 
     const notesByDate = loadNotesByDate();
     notesByDate[currentNotesDate] = notesByDate[currentNotesDate] || [];
-    notesByDate[currentNotesDate].push(note);
+
+    if (editingNoteId){
+      // update existing
+      const idx = (notesByDate[currentNotesDate]||[]).findIndex(n => n && n.id === editingNoteId);
+      if (idx >= 0){
+        const old = notesByDate[currentNotesDate][idx];
+        notesByDate[currentNotesDate][idx] = {
+          ...old,
+          type,
+          result: (result||null),
+          side: (side||null),
+          intensity,
+          text: (text||null),
+          // keep createdAt to preserve original ordering intent
+        };
+      } else {
+        // fallback: if not found, create new
+        notesByDate[currentNotesDate].push({ id: uid(), type, result: result||null, side: side||null, intensity, text: text||null, createdAt: new Date().toISOString() });
+      }
+    } else {
+      // create new
+      notesByDate[currentNotesDate].push({ id: uid(), type, result: result||null, side: side||null, intensity, text: text||null, createdAt: new Date().toISOString() });
+    }
+
     saveNotesByDate(notesByDate);
 
     ev.target.reset();
     document.getElementById("noteIntensity").value = 0;
+    setNoteEditingState(null);
+    updateNoteFormFields(document.getElementById("noteType")?.value || "LH");
 
     renderNotesList();
     rerenderCalendar();
@@ -1364,8 +1497,13 @@ function init(){
   });
 
   document.getElementById("noteClearBtn")?.addEventListener("click", ()=>{
+    if (editingNoteId){
+      cancelEditNote();
+      return;
+    }
     document.getElementById("noteForm")?.reset();
     document.getElementById("noteIntensity").value = 0;
+    updateNoteFormFields(document.getElementById("noteType")?.value || "LH");
   });
 
   // share: calendar summary as image
