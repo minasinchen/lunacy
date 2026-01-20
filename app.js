@@ -1617,6 +1617,19 @@ function init(){
     exportAllToCSV();
   });
 
+  // ICS export (Google/Apple Kalender)
+  document.getElementById("exportIcsBtn")?.addEventListener("click", ()=>{
+    if (typeof window.exportCalendarICS !== "function"){
+      alert("ICS-Export ist nicht verfügbar. Prüfe, ob icsExport.js geladen wird.");
+      return;
+    }
+    window.exportCalendarICS({ includePeriod:true, includeFertile:true });
+  });
+
+  document.getElementById("exportIcsInfoBtn")?.addEventListener("click", ()=>{
+    alert("ICS-Import in Google Kalender:\n1) Google Kalender (Web) öffnen\n2) Einstellungen → Importieren & Exportieren\n3) .ics auswählen und importieren\n\nHinweis: Lunacy exportiert private Ganztags-Termine als Prognose (≈) für die nächsten 12 Monate.");
+  });
+
   document.getElementById("importCsvFile")?.addEventListener("change", async (ev)=>{
     const file = ev.target.files?.[0] || null;
     if (!file) return;

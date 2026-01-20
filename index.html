@@ -287,6 +287,19 @@
         </div>
       </div>
 
+      <div class="card inner" style="margin-top:12px;">
+        <div class="strong">Google/Apple Kalender (ICS)</div>
+        <p class="muted" style="margin:6px 0 10px;font-size:12px;">
+          Exportiert <span class="strong">Prognose</span> als <span class="strong">private Ganztags-Termine</span>: Periode (≈) und fruchtbare Tage (≈, Block).
+        </p>
+        <div class="grid2">
+          <button class="btn primary" type="button" id="exportIcsBtn">ICS exportieren</button>
+          <button class="btn" type="button" id="exportIcsInfoBtn" title="Hinweise">Hinweis</button>
+        </div>
+        <div class="muted" style="margin-top:8px;font-size:12px;">
+          Zeitraum: nächste 12 Monate. Import in Google Kalender: Einstellungen → Importieren → .ics wählen.
+        </div>
+      </div>
       <div class="muted" style="margin-top:12px;font-size:12px;">
         „Eisprungtag“ wird nur genutzt, wenn noch keine LH-positiv Daten vorhanden sind.
       </div>
@@ -370,6 +383,7 @@
   <script src="utils.js"></script>
   <script src="astro.js"></script>
   <script src="app.js"></script>
+  <script src="icsExport.js"></script>
   <script src="mittelschmerz_stats.js"></script>
   <script src="tips.js"></script>
 </body>
