@@ -335,6 +335,25 @@ input:focus, select:focus, textarea:focus{ border-color: rgba(201,166,255,0.60);
   margin-bottom: 10px;
 }
 
+/* Bigger, easier month navigation (thumb-friendly) */
+.monthNavBtn{
+  min-width: 52px;
+  min-height: 46px;
+  padding: 10px 14px;
+  font-size: 24px;
+  line-height: 1;
+  border-radius: 16px;
+}
+
+.monthTodayBtn{
+  padding: 10px 14px;
+  border-radius: 16px;
+}
+
+@media (max-width: 560px){
+  .monthNavBtn{ min-width: 56px; min-height: 50px; font-size: 26px; }
+}
+
 .monthbarRight{
   display:flex;
   gap:10px;
@@ -505,6 +524,22 @@ input:focus, select:focus, textarea:focus{ border-color: rgba(201,166,255,0.60);
   filter: drop-shadow(0 1px 0 rgba(0,0,0,0.45));
 }
 
+/* Moon phase marker (main phases) */
+.dayMoonIcon{
+  position:absolute;
+  left:8px;
+  bottom:6px;
+  font-size: 16px;
+  line-height: 1;
+  opacity: 0.95;
+  filter: drop-shadow(0 2px 8px rgba(0,0,0,0.60));
+  pointer-events: none;
+}
+
+@media (max-width: 560px){
+  .dayMoonIcon{ font-size: 18px; left:10px; bottom:8px; }
+}
+
 .inlineCheck{ display:flex; flex-direction:row; align-items:center; gap:10px; margin-top:10px; }
 .inlineCheck input{ width:18px; height:18px; }
 
@@ -540,6 +575,15 @@ input:focus, select:focus, textarea:focus{ border-color: rgba(201,166,255,0.60);
 
 /* Slightly higher contrast for inner cards in dark background */
 .card.inner{ background: rgba(255,255,255,0.04); }
+
+/* --- iOS backup hint (Einstellungen) --- */
+#iosBackupHint{
+  border-color: rgba(245,211,106,0.32);
+  background: linear-gradient(180deg, rgba(245,211,106,0.10), rgba(255,255,255,0.03));
+}
+#iosBackupHint .iosHintTitle{ font-weight: 950; }
+#iosBackupHint .iosHintMeta{ color: var(--muted); margin-top: 6px; font-size: 12px; line-height: 1.35; }
+#iosBackupHint .iosHintBtns{ display:flex; gap:10px; flex-wrap:wrap; margin-top: 10px; justify-content:flex-end; }
 
 /* --- Phase mini overview (Heute) --- */
 .phaseMini{
@@ -580,6 +624,22 @@ input:focus, select:focus, textarea:focus{ border-color: rgba(201,166,255,0.60);
 .phaseTileTop{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
 .phaseTileLabel{ font-weight: 950; }
 .phaseTileHint{ color: var(--muted); margin-top: 4px; font-size: 12px; line-height: 1.25; }
+/* --- Today: ultra-klar (Makros + Mini-Lines) --- */
+.miniLines{ margin:6px 0 0 0; padding-left: 16px; color: var(--muted); font-size: 12px; line-height: 1.25; }
+.miniLines li{ margin: 2px 0; }
+
+.macroWrap{ margin-top:6px; }
+.macroBar{ height:10px; border-radius:999px; overflow:hidden; display:flex; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.10); }
+.macroSeg{ height:100%; display:block; }
+.macroProtein{ background: rgba(154,255,211,0.70); }
+.macroCarbs{ background: rgba(247,217,120,0.70); }
+.macroFat{ background: rgba(202,169,255,0.70); }
+
+.macroLegend{ display:flex; flex-wrap:wrap; gap:8px; margin-top:6px; color: rgba(207,198,234,0.92); font-size: 12px; }
+.macroKey{ display:inline-flex; align-items:center; gap:6px; }
+.macroDot{ width:10px; height:10px; border-radius:999px; border: 1px solid rgba(255,255,255,0.18); display:inline-block; }
+.macroLegend b{ font-weight: 950; color: var(--text); }
+
 .phaseTileDir{
   font-weight: 950;
   font-size: 16px;
@@ -808,7 +868,22 @@ input, button {
   padding: 6px 10px;
   font-size: 12px;
   background: rgba(0,0,0,0.14);
+  white-space: nowrap;
 }
+.warnBadge.high{ background: rgba(255,92,140,0.16); border-color: rgba(255,92,140,0.28); }
+.warnBadge.mid{ background: rgba(245,211,106,0.16); border-color: rgba(245,211,106,0.28); }
+.warnBadge.low{ background: rgba(201,166,255,0.14); border-color: rgba(201,166,255,0.24); }
+
+.warnActions{ display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-top:10px; }
+.warnSnooze{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+.warnSelect{
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: rgba(0,0,0,0.16);
+  color: var(--text);
+}
+.warnBtn{ padding: 10px 12px; border-radius: 12px; font-size: 15px; }
 .badge.pillish.ovu{ background: rgba(247,217,120,0.20); border-color: rgba(247,217,120,0.32); }
 .badge.pillish.fertile{ background: rgba(255,182,214,0.14); border-color: rgba(255,182,214,0.26); }
 .badge.pillish.next{ background: rgba(120,168,255,0.14); border-color: rgba(120,168,255,0.26); }
@@ -817,3 +892,77 @@ input, button {
 .cycleRingCard[data-state="period"]{ background: rgba(183, 132, 255, 0.10); }
 .cycleRingCard[data-state="ovulation"]{ background: rgba(247,217,120,0.08); }
 .cycleRingCard[data-state="next_period"]{ background: rgba(120,168,255,0.07); }
+
+
+/* =========================
+   📈 Stats Charts (Histogramm + Linie)
+   gold/violett/sternig, passend zum Theme
+   ========================= */
+.statsChartsGrid{
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  gap:12px;
+  margin-top:10px;
+}
+@media (max-width: 900px){
+  .statsChartsGrid{ grid-template-columns: 1fr; }
+}
+.chartCard{
+  position: relative;
+}
+.chartHeader{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:10px;
+  margin-bottom:10px;
+}
+.chartTitle{
+  font-weight: 950;
+}
+.chartSub{
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 4px;
+  line-height: 1.25;
+}
+.chartCanvasWrap{
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 16px;
+  padding: 10px;
+  background: rgba(0,0,0,0.12);
+}
+.chartCanvasWrap canvas{
+  display:block;
+  width:100%;
+  height:auto;
+}
+.chartTip{
+  position:absolute;
+  inset:auto auto 14px 14px;
+  max-width: calc(100% - 28px);
+  background: rgba(10,8,20,0.92);
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 12px;
+  padding: 8px 10px;
+  font-size: 12px;
+  color: var(--text);
+  box-shadow: 0 14px 50px rgba(0,0,0,0.55);
+  pointer-events:none;
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+.chartTip.show{
+  opacity: 1;
+  transform: translateY(0);
+}
+.chartLegendMini{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  margin-top:10px;
+}
+.chartLegendMini .badge{
+  font-size: 12px;
+}

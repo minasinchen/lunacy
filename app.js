@@ -6,6 +6,11 @@
 const KEY_BLEED   = "pt_bleed_v1";   // array of ISO dates with bleeding
 const KEY_NOTES   = "pt_notes_v1";   // {dateISO: [notes]}
 const KEY_SETTINGS= "pt_settings_v1";// {cycleLen,periodLen,ovuDay,motherSign,fatherSign,ttc}
+const KEY_LAST_CSV_BACKUP = "pt_last_csv_backup_v1"; // ISO timestamp of last manual CSV backup
+
+// iPhone/iPad Safari can't reliably auto-write a file outside the browser.
+// We therefore show a gentle reminder if the last *manual* export is too old.
+const IOS_BACKUP_REMIND_AFTER_DAYS = 14; // sensible default: every ~2 weeks
 
 // ---------- utils ----------
 function loadJSON(key, fallback){ try{const r=localStorage.getItem(key);return r?JSON.parse(r):fallback;}catch{return fallback;}}
@@ -23,6 +28,64 @@ function diffDays(a,b){
   const aa=new Date(a.getFullYear(),a.getMonth(),a.getDate()).getTime();
   const bb=new Date(b.getFullYear(),b.getMonth(),b.getDate()).getTime();
   return Math.round((bb-aa)/ms);
+}
+
+function isIOSDevice(){
+  const ua = navigator.userAgent || "";
+  return /iPad|iPhone|iPod/.test(ua);
+}
+
+function getLastCsvBackupISO(){
+  try{ return String(localStorage.getItem(KEY_LAST_CSV_BACKUP) || ""); }catch{ return ""; }
+}
+
+function markCsvBackupNow(){
+  try{ localStorage.setItem(KEY_LAST_CSV_BACKUP, new Date().toISOString()); }catch{}
+}
+
+function renderIOSBackupHint(){
+  const el = document.getElementById("iosBackupHint");
+  if (!el) return;
+
+  // Only show on iOS devices (Safari/Chrome iOS etc.)
+  if (!isIOSDevice()){
+    el.classList.add("hidden");
+    el.innerHTML = "";
+    return;
+  }
+
+  const lastISO = getLastCsvBackupISO();
+  const now = new Date();
+  let daysAgo = null;
+  if (lastISO){
+    const last = new Date(lastISO);
+    if (!isNaN(last.getTime())) daysAgo = diffDays(last, now);
+  }
+
+  const needsReminder = (!lastISO) || (daysAgo !== null && daysAgo >= IOS_BACKUP_REMIND_AFTER_DAYS);
+  if (!needsReminder){
+    el.classList.add("hidden");
+    el.innerHTML = "";
+    return;
+  }
+
+  const lastText = (!lastISO || daysAgo === null) ? "Noch nie" : `vor ${daysAgo} Tag${daysAgo===1?"":"en"}`;
+  el.classList.remove("hidden");
+  el.innerHTML = `
+    <div class="iosHintTitle">📱 iPhone-Hinweis: Bitte Backup speichern</div>
+    <div class="iosHintMeta">Auf iOS kann ein Browser-Reset Daten löschen. Letztes CSV-Backup: <span class="strong">${escapeHtml(lastText)}</span>.</div>
+    <div class="rowBtns" style="margin-top:10px;">
+      <button class="btn primary" type="button" id="iosBackupCsvNowBtn">Jetzt CSV sichern</button>
+    </div>
+    <div class="muted" style="margin-top:8px;font-size:12px;">Tipp: In Safari kannst du die Datei in „Dateien“/iCloud Drive speichern.</div>
+  `;
+
+  document.getElementById("iosBackupCsvNowBtn")?.addEventListener("click", ()=>{
+    // mark first so the reminder disappears immediately even if download UI interrupts
+    markCsvBackupNow();
+    renderIOSBackupHint();
+    exportAllToCSV();
+  });
 }
 function between(d,a,b){ const t=d.getTime(); return t>=a.getTime() && t<=b.getTime();}
 function formatDateDE(dateOrISO){
@@ -44,7 +107,7 @@ function shortText(s, max=42){
 
 // ---------- settings ----------
 function loadSettings(){
-  const s = loadJSON(KEY_SETTINGS, { cycleLen: 28, periodLen: 5, ovuDay: null, motherSign: "", fatherSign: "", ttc: true });
+  const s = loadJSON(KEY_SETTINGS, { cycleLen: 28, periodLen: 5, ovuDay: null, motherSign: "", fatherSign: "", ttc: true, warnSnoozeMonths: 6 });
   return {
     cycleLen: clamp(Number(s.cycleLen||28), 15, 60),
     periodLen: clamp(Number(s.periodLen||5), 1, 14),
@@ -52,9 +115,17 @@ function loadSettings(){
     motherSign: String(s.motherSign||"").trim(),
     fatherSign: String(s.fatherSign||"").trim(),
     ttc: (typeof s.ttc === "boolean") ? s.ttc : true,
+    warnSnoozeMonths: clamp(Number(s.warnSnoozeMonths ?? 6), 1, 24),
   };
 }
-function saveSettings(s){ saveJSON(KEY_SETTINGS, s); }
+function saveSettings(s){
+  saveJSON(KEY_SETTINGS, s);
+  try{
+    if (window.LunacyBackup && typeof window.LunacyBackup.markDirty === "function"){
+      window.LunacyBackup.markDirty("settings");
+    }
+  }catch(e){}
+}
 
 // ---------- bleeding log ----------
 function loadBleedDays(){
@@ -62,7 +133,14 @@ function loadBleedDays(){
   const set = new Set(arr.filter(Boolean));
   return [...set].sort(); // ascending ISO
 }
-function saveBleedDays(days){ saveJSON(KEY_BLEED, days); }
+function saveBleedDays(days){
+  saveJSON(KEY_BLEED, days);
+  try{
+    if (window.LunacyBackup && typeof window.LunacyBackup.markDirty === "function"){
+      window.LunacyBackup.markDirty("bleed");
+    }
+  }catch(e){}
+}
 
 function addBleedDay(dateISO){
   const days = loadBleedDays();
@@ -127,7 +205,14 @@ function derivePeriodsFromBleed(daysISO){
 
 // ---------- notes ----------
 function loadNotesByDate(){ return loadJSON(KEY_NOTES, {}); }
-function saveNotesByDate(map){ saveJSON(KEY_NOTES, map); }
+function saveNotesByDate(map){
+  saveJSON(KEY_NOTES, map);
+  try{
+    if (window.LunacyBackup && typeof window.LunacyBackup.markDirty === "function"){
+      window.LunacyBackup.markDirty("notes");
+    }
+  }catch(e){}
+}
 
 function dayHasNotes(dateISO){
   const notes = (loadNotesByDate()[dateISO] || []);
@@ -397,6 +482,38 @@ let viewDate = new Date();
 function startOfMonth(d){ return new Date(d.getFullYear(), d.getMonth(), 1); }
 function fmtMonth(d){ return d.toLocaleDateString("de-DE", { month:"long", year:"numeric" }); }
 
+// --- Moon phases (main 4 only) ---
+// Lightweight approximation (good enough for UI markers; not for astronomy).
+// We show only: New, First Quarter, Full, Last Quarter.
+function moonPhaseAgeDays(date){
+  // Reference new moon: 2000-01-06 18:14 UTC (common reference used in simple algorithms)
+  const synodic = 29.53058867;
+  const ref = Date.UTC(2000,0,6,18,14,0);
+  const t = Date.UTC(date.getFullYear(), date.getMonth(), date.getDate(), 12, 0, 0);
+  const days = (t - ref) / (1000*60*60*24);
+  const age = ((days % synodic) + synodic) % synodic;
+  return age;
+}
+
+function mainMoonPhaseForDate(date){
+  // Returns { key, emoji } or null
+  const age = moonPhaseAgeDays(date);
+  const phases = [
+    { key:"new",   at: 0.0,   emoji:"🌑", label:"Neumond" },
+    { key:"first", at: 7.38,  emoji:"🌓", label:"Erstes Viertel" },
+    { key:"full",  at: 14.77, emoji:"🌕", label:"Vollmond" },
+    { key:"last",  at: 22.15, emoji:"🌗", label:"Letztes Viertel" },
+  ];
+  // show if close to the phase day (±0.9 days)
+  let best = null;
+  for (const p of phases){
+    const d = Math.min(Math.abs(age - p.at), Math.abs((age + 29.53058867) - p.at), Math.abs(age - (p.at + 29.53058867)));
+    if (d <= 0.9 && (!best || d < best.d)) best = { d, p };
+  }
+  if (!best) return null;
+  return { key: best.p.key, emoji: best.p.emoji, label: best.p.label };
+}
+
 function renderNoteIcon(btn){
   // small note icon (SVG) — more visible than a dot
   const svg = document.createElementNS("http://www.w3.org/2000/svg","svg");
@@ -448,6 +565,16 @@ function rerenderCalendar(){
     label.className="date";
     label.textContent=d.getDate();
     btn.appendChild(label);
+
+    // main moon phases (fun layer)
+    const mp = mainMoonPhaseForDate(dd);
+    if (mp){
+      const s = document.createElement("span");
+      s.className = "dayMoonIcon";
+      s.textContent = mp.emoji;
+      s.setAttribute("aria-label", mp.label);
+      btn.appendChild(s);
+    }
 
     if (periods.length){
       const isActual = inAny(model.actualPeriods, dd);
@@ -738,7 +865,7 @@ function rerenderHormones(){
     g.fillText(label, lx, 6);
     g.restore();
   };
-  drawMarker(markerX(ovDay), `Eisprung (≈) • ZT ${ovDay}`, colLH);
+  drawMarker(markerX(ovDay), `Eisprung (≈) • ${formatDateDE(ctx0.ovuDate)} • ZT ${ovDay}`, colLH);
   drawMarker(markerX(dayInCycle), `Heute • ZT ${dayInCycle}`, text);
 
   // optional details renderer (tips.js)
@@ -1063,6 +1190,29 @@ function rerenderStats(){
       });
     }catch(e){
       console.warn("renderMittelschmerzStats failed", e);
+    }
+  }
+
+  // ---- Charts: Eisprung-ZT Histogramm + Zykluslängen-Linie (optional module) ----
+  if (typeof window.renderStatsCharts === "function"){
+    try{
+      window.renderStatsCharts({
+        periods,
+        model,
+        notesByDate,
+        avgCycle,
+        // helpers
+        formatDateDE,
+        diffDays,
+        addDays,
+        parseISO,
+        between,
+        escapeHtml,
+        computeOvulationForCycle,
+        iso,
+      });
+    }catch(e){
+      console.warn("renderStatsCharts failed", e);
     }
   }
 
@@ -1453,6 +1603,8 @@ function renderSettingsForm(){
   const s = loadSettings();
   document.getElementById("setCycleLen").value = s.cycleLen;
   document.getElementById("setPeriodLen").value = s.periodLen;
+  const ws = document.getElementById("setWarnSnoozeMonths");
+  if (ws) ws.value = s.warnSnoozeMonths ?? 6;
   const ttcEl = document.getElementById("setTtc");
   if (ttcEl) ttcEl.checked = !!s.ttc;
   document.getElementById("setOvuDay").value = s.ovuDay ?? "";
@@ -1518,6 +1670,60 @@ function init(){
   document.getElementById("nextBtn").addEventListener("click", ()=>{
     viewDate = new Date(viewDate.getFullYear(), viewDate.getMonth()+1, 1);
     rerenderCalendar();
+  });
+
+  // jump back to current month
+  document.getElementById("monthTodayBtn")?.addEventListener("click", ()=>{
+    const now = new Date();
+    viewDate = new Date(now.getFullYear(), now.getMonth(), 1);
+    rerenderCalendar();
+  });
+
+  // swipe navigation on the calendar grid (mobile)
+  (function bindCalendarSwipe(){
+    const cal = document.getElementById("calendar");
+    if (!cal) return;
+    let sx = 0, sy = 0, st = 0;
+    cal.addEventListener("touchstart", (ev)=>{
+      const t = ev.touches && ev.touches[0];
+      if (!t) return;
+      sx = t.clientX; sy = t.clientY; st = Date.now();
+    }, { passive: true });
+    cal.addEventListener("touchend", (ev)=>{
+      const t = ev.changedTouches && ev.changedTouches[0];
+      if (!t) return;
+      const dx = t.clientX - sx;
+      const dy = t.clientY - sy;
+      const dt = Date.now() - st;
+      // must be a fairly quick horizontal swipe
+      if (dt > 700) return;
+      if (Math.abs(dx) < 60) return;
+      if (Math.abs(dx) < Math.abs(dy)) return;
+
+      // only if calendar view is visible
+      const view = document.getElementById("view-calendar");
+      if (!view || view.classList.contains("hidden")) return;
+
+      if (dx < 0){
+        viewDate = new Date(viewDate.getFullYear(), viewDate.getMonth()+1, 1);
+      } else {
+        viewDate = new Date(viewDate.getFullYear(), viewDate.getMonth()-1, 1);
+      }
+      rerenderCalendar();
+    }, { passive: true });
+  })();
+
+  // keyboard navigation (desktop)
+  document.addEventListener("keydown", (ev)=>{
+    const view = document.getElementById("view-calendar");
+    if (!view || view.classList.contains("hidden")) return;
+    if (ev.key === "ArrowLeft"){
+      viewDate = new Date(viewDate.getFullYear(), viewDate.getMonth()-1, 1);
+      rerenderCalendar();
+    } else if (ev.key === "ArrowRight"){
+      viewDate = new Date(viewDate.getFullYear(), viewDate.getMonth()+1, 1);
+      rerenderCalendar();
+    }
   });
 
   // notes modal close
@@ -1609,6 +1815,7 @@ function init(){
     ev.preventDefault();
     const cycleLen = clamp(Number(document.getElementById("setCycleLen").value||28), 15, 60);
     const periodLen = clamp(Number(document.getElementById("setPeriodLen").value||5), 1, 14);
+    const warnSnoozeMonths = clamp(Number(document.getElementById("setWarnSnoozeMonths")?.value || 6), 1, 24);
     const ttc = !!document.getElementById("setTtc")?.checked;
     const ovuRaw = document.getElementById("setOvuDay").value;
     const ovuDay = (ovuRaw === "" || ovuRaw === null) ? null : clamp(Number(ovuRaw), 6, 50);
@@ -1621,6 +1828,9 @@ function init(){
 
   // CSV export/import
   document.getElementById("exportCsvBtn")?.addEventListener("click", ()=>{
+    // For iOS users we show a reminder; store the timestamp when the user exports.
+    markCsvBackupNow();
+    renderIOSBackupHint();
     exportAllToCSV();
   });
 
@@ -1658,6 +1868,7 @@ function init(){
     localStorage.removeItem(KEY_BLEED);
     localStorage.removeItem(KEY_NOTES);
     localStorage.removeItem(KEY_SETTINGS);
+    localStorage.removeItem(KEY_LAST_CSV_BACKUP);
     rerenderToday(); rerenderCalendar(); rerenderStats(); rerenderHormones();
   });
 
@@ -1666,6 +1877,7 @@ function init(){
   rerenderCalendar();
   rerenderStats();
   rerenderHormones();
+  renderIOSBackupHint();
   setView("today");
 }
 

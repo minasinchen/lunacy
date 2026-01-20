@@ -80,15 +80,53 @@ function dirArrow(dir){
   return "→";
 }
 
+function normalizeMacro(m){
+  const p = Math.max(0, Number(m?.protein) || 0);
+  const c = Math.max(0, Number(m?.carbs) || 0);
+  const f = Math.max(0, Number(m?.fat) || 0);
+  const sum = p + c + f;
+  if (!sum) return { protein:0, carbs:0, fat:0 };
+  return {
+    protein: Math.round((p/sum)*100),
+    carbs: Math.round((c/sum)*100),
+    fat: Math.max(0, 100 - Math.round((p/sum)*100) - Math.round((c/sum)*100)),
+  };
+}
+
+function renderMacroMini(macro){
+  const mm = normalizeMacro(macro);
+  return `
+    <div class="macroWrap" aria-label="Makro-Aufteilung">
+      <div class="macroBar" role="img" aria-label="Protein ${mm.protein} Prozent, Kohlenhydrate ${mm.carbs} Prozent, Fett ${mm.fat} Prozent">
+        <span class="macroSeg macroProtein" style="width:${mm.protein}%;"></span>
+        <span class="macroSeg macroCarbs" style="width:${mm.carbs}%;"></span>
+        <span class="macroSeg macroFat" style="width:${mm.fat}%;"></span>
+      </div>
+      <div class="macroLegend">
+        <span class="macroKey"><span class="macroDot macroProtein"></span>Protein <b>${mm.protein}%</b></span>
+        <span class="macroKey"><span class="macroDot macroCarbs"></span>Kohlenhydrate <b>${mm.carbs}%</b></span>
+        <span class="macroKey"><span class="macroDot macroFat"></span>Fett <b>${mm.fat}%</b></span>
+      </div>
+    </div>
+  `;
+}
+
+function renderMiniLines(lines){
+  const safeLines = (lines || []).slice(0, 3).map(x => escapeHtml(String(x || ""))).filter(Boolean);
+  if (!safeLines.length) return "";
+  return `<ul class="miniLines">${safeLines.map(t=>`<li>${t}</li>`).join("")}</ul>`;
+}
+
+// Mini: ultra-klar, ohne Floskeln
 const PHASE_GUIDE = {
   menstrual: {
     mini: {
-      food:  { short:"Wärmend", dir:"up",  hint:"einfach & sättigend" },
-      sport: { short:"Sehr sanft", dir:"down", hint:"Spaziergang/Dehnen" },
-      supp:  { short:"Mg / Eisen", dir:"mid", hint:"nur wenn passend" },
-      mind:  { short:"Nach innen", dir:"down", hint:"weniger Druck" },
-      rest:  { short:"Hoch", dir:"up",  hint:"Pausen erlaubt" },
-      care:  { short:"Priorität", dir:"up",  hint:"Grenzen setzen" },
+      food:  { short:"Carbphase", dir:"up",  macro:{ protein:30, carbs:45, fat:25 }, lines:["Protein: 30%","KH: 45%","Fett: 25%"] },
+      sport: { short:"Pause / locker", dir:"down", lines:["0–30 min locker","Mobility/Stretch","Kein HIIT nötig"] },
+      supp:  { short:"Nur Basics", dir:"mid", lines:["Mg: wenn gewohnt","Eisen: nur bei Mangel","Keine Experimente"] },
+      mind:  { short:"1 Task", dir:"down", lines:["1 Priorität","Kein Multitask","Alles optional"] },
+      rest:  { short:"Mehr Schlaf", dir:"up",  lines:["früher ins Bett","Wärme/ruhe","Pausen einplanen"] },
+      care:  { short:"Symptom-Plan", dir:"up", lines:["Wärme/Pad","Kalender leichter","Grenzen setzen"] },
     },
     details: {
       food: {
@@ -127,12 +165,12 @@ const PHASE_GUIDE = {
 
   follicular: {
     mini: {
-      food:  { short:"Leicht & frisch", dir:"up",  hint:"protein + bunt" },
-      sport: { short:"Aufbau", dir:"up",  hint:"Kraft/Neues" },
-      supp:  { short:"Optional", dir:"mid", hint:"Basics reichen" },
-      mind:  { short:"Klar", dir:"up",  hint:"planen/lernen" },
-      rest:  { short:"Normal", dir:"mid", hint:"Routine" },
-      care:  { short:"Offener", dir:"up",  hint:"Kontakte" },
+      food:  { short:"Protein hoch", dir:"up",  macro:{ protein:35, carbs:40, fat:25 }, lines:["Protein: 35%","KH: 40%","Fett: 25%"] },
+      sport: { short:"Kraft + Aufbau", dir:"up",  lines:["Kraft: ja","Neue Reize: ja","HIIT: optional"] },
+      supp:  { short:"Konstant", dir:"mid", lines:["Wenn du nimmst: konstant","Sonst: nichts extra","Basics zuerst"] },
+      mind:  { short:"Fokus", dir:"up",  lines:["Planen/lernen","Deep Work","To-dos bündeln"] },
+      rest:  { short:"Routine", dir:"mid", lines:["7–9 h Schlaf","Regelmäßig essen","Bewegung täglich"] },
+      care:  { short:"Nach außen", dir:"up",  lines:["Termine/Meetings ok","Neues starten","Sozial leichter"] },
     },
     details: {
       food: {
@@ -170,12 +208,12 @@ const PHASE_GUIDE = {
 
   fertile: {
     mini: {
-      food:  { short:"Ausgewogen", dir:"up",  hint:"regelmäßig" },
-      sport: { short:"Peak", dir:"up",  hint:"intensiver ok" },
-      supp:  { short:"Optional", dir:"mid", hint:"Hydration" },
-      mind:  { short:"Expressiv", dir:"up",  hint:"Gespräche" },
-      rest:  { short:"Achten", dir:"mid", hint:"Puffer" },
-      care:  { short:"Sozial", dir:"up",  hint:"sichtbarer" },
+      food:  { short:"Carbphase", dir:"up",  macro:{ protein:28, carbs:50, fat:22 }, lines:["Protein: 28%","KH: 50%","Fett: 22%"] },
+      sport: { short:"Intensiv ok", dir:"up",  lines:["Kraft/HIIT: ok","Warm-up Pflicht","Technik sauber"] },
+      supp:  { short:"Hydration", dir:"mid", lines:["Wasser + Salz","Elektrolyte bei Sport","Mg nur wenn gewohnt"] },
+      mind:  { short:"Kommunikation", dir:"up",  lines:["Gespräche/Calls","Präsentieren","Konflikte klären"] },
+      rest:  { short:"Puffer", dir:"mid", lines:["Cooldown einplanen","Nicht überziehen","Schlaf normal"] },
+      care:  { short:"Mehr Energie", dir:"up",  lines:["Sozial ok","Grenzen halten","Self-Expression"] },
     },
     details: {
       food: {
@@ -213,12 +251,12 @@ const PHASE_GUIDE = {
 
   luteal: {
     mini: {
-      food:  { short:"Sättigend", dir:"up",  hint:"Snacks planen" },
-      sport: { short:"Sanft", dir:"mid", hint:"moderate" },
-      supp:  { short:"Mg / B6", dir:"mid", hint:"optional" },
-      mind:  { short:"Sensibler", dir:"down", hint:"weniger Multitask" },
-      rest:  { short:"Wichtig", dir:"up",  hint:"früher runter" },
-      care:  { short:"Schonend", dir:"up",  hint:"Grenzen" },
+      food:  { short:"Proteinphase", dir:"up",  macro:{ protein:40, carbs:30, fat:30 }, lines:["Protein: 40%","KH: 30%","Fett: 30%"] },
+      sport: { short:"Volumen runter", dir:"mid", lines:["Volumen -20%","Intensität moderat","Mehr Walks"] },
+      supp:  { short:"PMS-Setup", dir:"mid", lines:["Mg abends (wenn du nutzt)","Keine neuen Sachen","Basics zuerst"] },
+      mind:  { short:"Monotask", dir:"down", lines:["1 Task nach dem anderen","Pausen 60–90 min","Reiz reduzieren"] },
+      rest:  { short:"Früher runter", dir:"up",  lines:["Screen runter","Abendroutine","Schlaf priorisieren"] },
+      care:  { short:"Reizschutz", dir:"up",  lines:["Kalender leerer","Nein sagen","Alles vereinfachen"] },
     },
     details: {
       food: {
@@ -255,6 +293,43 @@ const PHASE_GUIDE = {
   },
 };
 
+// Compact explanation for the hormones view (kept short but explanatory)
+const HORMONE_EXPLAIN = {
+  menstrual: {
+    title: "Was passiert gerade?",
+    bullets: [
+      "Hormone sind niedrig → Koerper startet neu.",
+      "Energie kann geringer sein; Schmerz/Empfindlichkeit ist moeglich.",
+      "Fokus: Waerme, Regelmaessigkeit, Druck rausnehmen.",
+    ]
+  },
+  follicular: {
+    title: "Was passiert gerade?",
+    bullets: [
+      "Oestrogen steigt → Antrieb, Fokus und Belastbarkeit nehmen oft zu.",
+      "Guter Zeitpunkt fuer Aufbau (Training, Planung, neue Routinen).",
+      "Fokus: Protein-Basis, klare Ziele, Progression.",
+    ]
+  },
+  fertile: {
+    title: "Was passiert gerade?",
+    bullets: [
+      "LH-Spitze rund um den Eisprung → Koerper ist auf " +
+      "Freisetzung der Eizelle eingestellt.",
+      "Viele fuehlen sich leistungsfaehig und kommunikativer.",
+      "Fokus: Stabil essen, nicht ueberpacen, Technik vor Ego.",
+    ]
+  },
+  luteal: {
+    title: "Was passiert gerade?",
+    bullets: [
+      "Progesteron dominiert → Regeneration langsamer, Hunger/Cravings moeglich.",
+      "Reizbarkeit/Schlafschwankungen koennen zunehmen (v. a. spaet luteal).",
+      "Fokus: Proteinphase, Volumen runter, Routinen vereinfachen.",
+    ]
+  },
+};
+
 function phaseCat(phaseKey, catKey){
   const phase = PHASE_GUIDE[phaseKey] || PHASE_GUIDE.follicular;
   const mini = phase.mini?.[catKey];
@@ -274,10 +349,13 @@ function renderPhaseMini(phaseKey){
   target.classList.toggle("phaseMini", true);
 
   target.innerHTML = CATS.map(c => {
-    const m = phase.mini[c.key];
+    const m = phase.mini[c.key] || {};
     const dir = dirArrow(m?.dir || "mid");
     const short = escapeHtml(m?.short || "–");
-    const hint = escapeHtml(m?.hint || "");
+
+    const body = (c.key === "food" && m?.macro)
+      ? renderMacroMini(m.macro)
+      : renderMiniLines(m?.lines || []);
 
     return `
       <button type="button" class="phaseTile" data-cat="${escapeHtml(c.key)}">
@@ -287,7 +365,7 @@ function renderPhaseMini(phaseKey){
             <div class="phaseTileLabel">${escapeHtml(c.label)} • ${short}</div>
             <div class="phaseTileDir" aria-label="Tendenz">${dir}</div>
           </div>
-          <div class="phaseTileHint">${hint}</div>
+          <div class="phaseTileHint">${body}</div>
         </div>
       </button>
     `;
@@ -349,6 +427,11 @@ function renderPhasePanel(todayISO){
 
   renderPhaseMini(info.phaseKey);
   bindPhaseMiniInteractions(info.phaseKey);
+
+  // warnings (only if any exist; module decides)
+  if (typeof window.renderWarningsPanel === "function"){
+    window.renderWarningsPanel(todayISO, ctx);
+  }
 }
 
 // ---------- Rendering: Hormonkurve (Details) ----------
@@ -356,12 +439,14 @@ function renderHormoneDetails(payload){
   const wrap = document.getElementById("hormoneDetails");
   const titleEl = document.getElementById("hormoneDetailsTitle");
   const metaEl = document.getElementById("hormoneDetailsMeta");
+  const explainEl = document.getElementById("hormoneExplain");
   const bodyEl = document.getElementById("hormoneDetailsBody");
   if (!wrap || !bodyEl) return;
 
   if (!payload){
     if (titleEl) titleEl.textContent = "Noch keine Zyklus-Daten";
     if (metaEl) metaEl.textContent = "Trage Blutungstage ein, dann erscheinen hier die Erklärungen.";
+    if (explainEl) explainEl.innerHTML = "";
     bodyEl.innerHTML = "";
     return;
   }
@@ -372,6 +457,16 @@ function renderHormoneDetails(payload){
 
   if (titleEl) titleEl.textContent = `${phaseLabel.replace(" (≈)", "")} • ZT ${payload.dayInCycle}/${payload.cycleLen}`;
   if (metaEl) metaEl.textContent = `${payload.ovText} • ${payload.nextText}`;
+
+  if (explainEl){
+    const ex = HORMONE_EXPLAIN[phaseKey] || HORMONE_EXPLAIN.follicular;
+    explainEl.innerHTML = `
+      <div class="hExplainT">${escapeHtml(ex.title || "")}</div>
+      <ul>
+        ${(ex.bullets||[]).map(b=>`<li>${escapeHtml(b)}</li>`).join("")}
+      </ul>
+    `;
+  }
 
   bodyEl.innerHTML = CATS.map(c => {
     const det = phase.details[c.key];
