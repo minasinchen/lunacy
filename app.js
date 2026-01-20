@@ -406,7 +406,7 @@ function renderNoteIcon(btn){
 function rerenderCalendar(){
   const days = loadBleedDays();
   const periods = derivePeriodsFromBleed(days);
-  const model = buildCalendarModel(periods, 6);
+  const model = buildCalendarModel(periods, 12);
 
   document.getElementById("monthTitle").textContent = fmtMonth(viewDate);
   const cal = document.getElementById("calendar");
@@ -979,7 +979,7 @@ function rerenderStats(){
   const variability = stdCycle < 1.5 ? "sehr stabil" : stdCycle < 3.5 ? "relativ stabil" : stdCycle < 6 ? "wechselhaft" : "stark wechselhaft";
 
   // build model for ovulation offset
-  const model = buildCalendarModel(periods, 6);
+  const model = buildCalendarModel(periods, 12);
   const notesByDate = loadNotesByDate();
 
   statsSummary.innerHTML = `
