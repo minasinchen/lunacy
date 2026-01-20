@@ -193,7 +193,7 @@ function computePersonalOvulationOffset(periodsNewestFirst, notesByDate, fallbac
   return Math.round(offsets.reduce((s,x)=>s+x,0)/offsets.length);
 }
 
-function buildCalendarModel(periodsNewestFirst, forecastCycles=6){
+function buildCalendarModel(periodsNewestFirst, forecastCycles=12){
   const settings = loadSettings();
   if (!periodsNewestFirst.length){
     return { actualPeriods: [], forecastPeriods: [], fertileRanges: [], ovulationDaysISO: [], cycleLen: settings.cycleLen, periodLen: settings.periodLen, personalOvuOffset: (settings.ovuDay?settings.ovuDay-1:(settings.cycleLen-14)), latestStart: null };
