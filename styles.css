@@ -180,7 +180,16 @@ body::after{
   height: 34px;
   flex-shrink: 0;
 }
+.brandRight{
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+}
 
+.brandSubtitle{
+  font-size:12px;
+  color: var(--muted);
+}
 .logoWordmark{
   height: clamp(20px, 4vw, 34px);
   width: auto;
