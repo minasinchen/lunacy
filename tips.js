@@ -5,7 +5,7 @@
 function getCurrentCycleContext(){
   const days = loadBleedDays();
   const periods = derivePeriodsFromBleed(days);
-  const model = buildCalendarModel(periods, 6);
+  const model = buildCalendarModel(periods, 12);
   if (!periods.length || !model.latestStart) return null;
 
   const cycleStart = model.latestStart;
