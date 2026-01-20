@@ -461,9 +461,9 @@ function rerenderCalendar(){
     return;
   }
 
-  const nextStarts = model.forecastPeriods.map(r=>formatDateDE(r.start)).slice(0,6);
+  const nextStarts = model.forecastPeriods.map(r=>formatDateDE(r.start)).slice(0,12);
   const settings = loadSettings();
-  const nextOvISOs = model.ovulationDaysISO.slice(0,6);
+  const nextOvISOs = model.ovulationDaysISO.slice(0,12);
   const nextOvBadges = nextOvISOs.map(d=>formatDateDE(d));
 
   const pregnancyGrid = (()=>{
