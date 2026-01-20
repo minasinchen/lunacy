@@ -9,7 +9,7 @@ function getCurrentCycleContext(){
   if (!periods.length || !model.latestStart) return null;
 
   const cycleStart = model.latestStart;
-  const nextStart = periods.length > 1 ? periods[1].start : addDays(cycleStart, model.cycleLen);
+  const nextStart = model.forecastPeriods?.[0]?.start || addDays(cycleStart, model.cycleLen);
   const ovISO = model.ovulationDaysISO?.[0] || null;
   const ovuDate = ovISO ? parseISO(ovISO) : addDays(cycleStart, model.personalOvuOffset);
   const periodEnd = addDays(cycleStart, model.periodLen - 1);

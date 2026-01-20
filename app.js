@@ -222,7 +222,7 @@ function buildCalendarModel(periodsNewestFirst, forecastCycles=12){
   const ovulationDaysISO = [];
 
   // current cycle ovulation: priority LH+ > Mittelschmerz > Zervix (fadenziehend) > Standard
-  const nextStart = periodsNewestFirst.length > 1 ? periodsNewestFirst[1].start : addDays(latestStart, cycleLen);
+  const nextStart = addDays(latestStart, cycleLen);
   const currentOv = computeOvulationForCycle(latestStart, nextStart, { personalOvuOffset }, notesByDate);
   ovulationDaysISO.push(iso(currentOv.ovuDate));
   fertileRanges.push({ start: addDays(currentOv.ovuDate, -5), end: addDays(currentOv.ovuDate, 1) });
@@ -319,7 +319,14 @@ function rerenderToday(){
   const todayISO = iso(new Date());
   document.getElementById("bleedDate").value = todayISO;
 
+  // Sternschnuppen-Progressbar (Zyklus-Timeline) im Heute-View
+  if (typeof window.renderCycleProgress === "function"){
+    try{ window.renderCycleProgress(todayISO); }
+    catch(e){ console.warn("renderCycleProgress failed", e); }
+  }
+
   renderPhasePanel(todayISO);
+
 
   // defaults for range inputs
   const fromEl = document.getElementById("bleedFrom");
