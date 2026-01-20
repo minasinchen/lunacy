@@ -175,6 +175,18 @@ body::after{
   box-shadow: 0 10px 30px rgba(0,0,0,0.35);
   background: rgba(255,255,255,0.06);
 }
+.logoIcon{
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+}
+
+.logoWordmark{
+  height: clamp(20px, 4vw, 34px);
+  width: auto;
+  max-width: 180px;
+  object-fit: contain;
+}
 .brandText .title{
   font-family: var(--font-brand);
   font-weight: 700;
@@ -187,6 +199,11 @@ body::after{
 .brandText .subtitle{ color:var(--muted); font-size:12px; }
 
 /* Mobile: keep header compact so the logo never "covers" content */
+@media (max-width: 560px){
+  .logoWordmark{
+    max-width: 140px;
+  }
+}
 @media (max-width: 560px){
   body{ font-size: 19px; }
   .topbar{
