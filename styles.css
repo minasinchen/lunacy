@@ -576,6 +576,15 @@ input:focus, select:focus, textarea:focus{ border-color: rgba(201,166,255,0.60);
 /* Slightly higher contrast for inner cards in dark background */
 .card.inner{ background: rgba(255,255,255,0.04); }
 
+/* Make the hormone curve actually readable on phones */
+@media (max-width: 560px){
+  .chartWrap{
+    padding: 8px;
+    /* JS reads the wrapper height to size the canvas; give it room. */
+    min-height: 360px;
+  }
+}
+
 /* --- iOS backup hint (Einstellungen) --- */
 #iosBackupHint{
   border-color: rgba(245,211,106,0.32);
