@@ -1879,6 +1879,25 @@ function init(){
   rerenderHormones();
   renderIOSBackupHint();
   setView("today");
+
+  // --- Mobile-first: reflow on resize/orientation changes ---
+  // Canvas charts need an explicit redraw when the viewport changes.
+  let resizeTimer = null;
+  const handleResize = ()=>{
+    if (resizeTimer) clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(()=>{
+      try{
+        if (!document.getElementById("view-hormones")?.classList.contains("hidden")) rerenderHormones();
+        if (!document.getElementById("view-stats")?.classList.contains("hidden")) rerenderStats();
+        if (!document.getElementById("view-calendar")?.classList.contains("hidden")) rerenderCalendar();
+        if (!document.getElementById("view-today")?.classList.contains("hidden")) rerenderToday();
+      }catch(e){
+        console.warn("resize rerender failed", e);
+      }
+    }, 160);
+  };
+  window.addEventListener("resize", handleResize, { passive:true });
+  window.addEventListener("orientationchange", handleResize, { passive:true });
 }
 
 document.addEventListener("DOMContentLoaded", init);
