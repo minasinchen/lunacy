@@ -570,6 +570,10 @@ input:focus, select:focus, textarea:focus{ border-color: rgba(201,166,255,0.60);
     text-align: right;
   }
 }
+@media (max-width: 420px){
+  .tableGrid .k{ min-width: 78px; }
+  .tableGrid .kv{ gap: 10px; }
+}
 
 /* Modal */
 .modal{ position:fixed; inset:0; z-index:50; }
