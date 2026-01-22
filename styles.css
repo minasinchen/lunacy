@@ -507,20 +507,22 @@ input:focus, select:focus, textarea:focus{ border-color: rgba(201,166,255,0.60);
   .small{ font-size: 13px; }
 }
 
-/* --- TODAY highlight in calendar --- */
-.cell.today {
-  box-shadow: inset 0 0 0 2px var(--accent);
-  border-color: rgba(247,217,120,0.55);
+/* --- TODAY highlight in calendar (must override bg-* shadows) --- */
+.cell.day.today{
+  box-shadow: inset 0 0 0 2px var(--accent) !important;
+  border-color: rgba(247,217,120,0.55) !important;
 }
 
-.cell.today::after{
+.cell.day.today::after{
   content: "★";
   position: absolute;
   top: 6px;
   right: 6px;
+  z-index: 2;
   font-size: 14px;
   color: var(--accent);
   text-shadow: 0 2px 8px rgba(0,0,0,0.6);
+  pointer-events: none;
 }
 
 /* Mobile-friendly "table" replacement */
