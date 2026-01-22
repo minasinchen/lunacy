@@ -529,18 +529,46 @@ input:focus, select:focus, textarea:focus{ border-color: rgba(201,166,255,0.60);
 .tableGrid .trEnd .td{ border-bottom: none; }
 
 @media (max-width: 820px){
-  .tableGrid{ grid-template-columns: 1fr; }
+  /* Tabelle -> Cards */
+  .tableGrid{
+    grid-template-columns: 1fr;
+    border-radius: 16px;
+  }
+
   .tableGrid .th{ display:none; }
   .tableGrid .td{ border-bottom: none; }
+
+  /* Mobile Cards: besser lesbar */
   .tableGrid .rowCard{
-    border-bottom: 1px solid rgba(255,255,255,0.10);
-    padding: 10px;
-    background: rgba(0,0,0,0.12);
+    padding: clamp(12px, 3.5vw, 16px);
+    border-bottom: 1px solid rgba(255,255,255,0.12);
+    background: rgba(0,0,0,0.14);
   }
   .tableGrid .rowCard:last-child{ border-bottom: none; }
-  .tableGrid .kv{ display:flex; justify-content:space-between; gap:12px; padding: 4px 0; }
-  .tableGrid .k{ color: var(--muted); font-size:12px; }
-  .tableGrid .v{ font-weight: 800; }
+
+  .tableGrid .kv{
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 5px 0;
+    align-items: baseline;
+  }
+
+  .tableGrid .k{
+    color: var(--muted);
+    font-size: clamp(10px, 2.8vw, 11px);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    min-width: 90px;
+    flex-shrink: 0;
+  }
+
+  .tableGrid .v{
+    font-weight: 800;
+    font-size: clamp(14px, 3.6vw, 16px);
+    line-height: 1.35;
+    text-align: right;
+  }
 }
 
 /* Modal */
