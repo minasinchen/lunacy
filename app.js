@@ -559,6 +559,12 @@ function rerenderCalendar(){
     const btn=document.createElement("button");
     btn.type="button";
     btn.className="cell day";
+
+const todayISO = iso(new Date());
+if (dateISO === todayISO){
+  btn.classList.add("today");
+}
+    
     if (d.getMonth() !== viewDate.getMonth()) btn.classList.add("dim");
 
     const label=document.createElement("div");
