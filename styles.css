@@ -160,11 +160,16 @@ body::after{
 
 /* Ensure app content sits above star layers */
 .topbar,
+.container,
+.footer,
+.modal{
+  position: relative;
+  z-index: 1;
+}
 
 /* =========================
    Mobile Tabs (Icons + Mini-Labels)
    ========================= */
-
 .navDesktop{ display:flex; }
 .tabBtn{
   display:inline-flex;
