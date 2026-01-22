@@ -507,24 +507,6 @@ input:focus, select:focus, textarea:focus{ border-color: rgba(201,166,255,0.60);
   .small{ font-size: 13px; }
 }
 
-/* --- TODAY highlight in calendar (must override bg-* shadows) --- */
-.cell.day.today{
-  box-shadow: inset 0 0 0 2px var(--accent) !important;
-  border-color: rgba(247,217,120,0.55) !important;
-}
-
-.cell.day.today::after{
-  content: "★";
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  z-index: 2;
-  font-size: 14px;
-  color: var(--accent);
-  text-shadow: 0 2px 8px rgba(0,0,0,0.6);
-  pointer-events: none;
-}
-
 /* Mobile-friendly "table" replacement */
 .tableGrid{
   display:grid;
@@ -1033,4 +1015,28 @@ input, button {
 }
 .chartLegendMini .badge{
   font-size: 12px;
+}
+
+/* --- TODAY highlight in calendar (works even on period days) --- */
+.cell.day.today::before{
+  content:"";
+  position:absolute;
+  inset: 3px;
+  border-radius: 12px;
+  border: 2px solid var(--accent);
+  pointer-events:none;
+  z-index: 2;
+  opacity: 0.95;
+}
+
+.cell.day.today::after{
+  content: "★";
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 3;
+  font-size: 14px;
+  color: var(--accent);
+  text-shadow: 0 2px 8px rgba(0,0,0,0.6);
+  pointer-events: none;
 }
