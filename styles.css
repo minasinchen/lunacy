@@ -1072,3 +1072,21 @@ input, button {
   text-shadow: 0 2px 8px rgba(0,0,0,0.6);
   pointer-events: none;
 }
+
+/* --- TODAY legend style (button + calendar use same visuals) --- */
+.todayLegend{
+  position: relative;
+  box-shadow: inset 0 0 0 2px var(--accent);
+  border-color: rgba(247,217,120,0.55);
+}
+
+.todayLegend::after{
+  content: "★";
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  font-size: 14px;
+  color: var(--accent);
+  text-shadow: 0 2px 8px rgba(0,0,0,0.6);
+  pointer-events: none;
+}
