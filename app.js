@@ -533,6 +533,10 @@ function rerenderCalendar(){
   const model = buildCalendarModel(periods, 12);
 
   document.getElementById("monthTitle").textContent = fmtMonth(viewDate);
+  const todayBtn = document.getElementById("monthTodayBtn");
+if (todayBtn){
+  todayBtn.classList.add("todayLegend");
+}
   const cal = document.getElementById("calendar");
   const summary = document.getElementById("summary");
   cal.innerHTML = "";
@@ -563,6 +567,7 @@ function rerenderCalendar(){
 const todayISO = iso(new Date());
 if (dateISO === todayISO){
   btn.classList.add("today");
+  btn.classList.add("todayLegend");
 }
     
     if (d.getMonth() !== viewDate.getMonth()) btn.classList.add("dim");
