@@ -10,10 +10,10 @@
   <header class="topbar">
     <div class="brand" aria-label="Lunacy">
       <img src="logo.png" class="logoImg" alt="Lunacy Logo" />
-      <div class="brandText">
-        <div class="title">Lunacy</div>
-        <div class="subtitle">Periodentracker • lokal auf deinem Gerät</div>
-      </div>
+      <div class="brandRight">
+    <img src="lunacy-wordmark.png" class="logoWordmark" />
+    <div class="brandSubtitle">Periodentracker • lokal auf deinem Gerät</div>
+  </div>
     </div>
 
     <nav class="nav" aria-label="Navigation">
@@ -30,6 +30,52 @@
     <section class="card view" id="view-today">
       <h2>Heute</h2>
       <p class="muted">Schnell-Logging: „Heute Blutung“ und Notizen. Du kannst auch rückwirkend eintragen – oder direkt einen Zeitraum setzen.</p>
+
+      <!-- Zyklus-Timeline (Sternschnuppe) -->
+      <div class="card inner cycleProgressCard hidden" id="cycleProgressCard" aria-live="polite">
+        <div class="cycleProgressTop">
+          <div style="flex:1;min-width:0;">
+            <div class="muted" id="cycleProgressKicker">Zyklus</div>
+            <div class="strong" id="cycleProgressHeadline">–</div>
+            <div class="muted" style="font-size:12px;margin-top:4px;" id="cycleProgressSub">–</div>
+          </div>
+          <div class="cycleProgressBadge" id="cycleProgressBadge">ZT –</div>
+        </div>
+
+        <div class="cycleProgressTrackWrap" aria-label="Zyklus Fortschritt">
+          <div class="cycleProgressTrack" id="cycleProgressTrack">
+            <div class="cycleProgressFill" id="cycleProgressFill"></div>
+
+            <!-- Goldener Stern: Eisprung -->
+            <div class="cycleMarker ovu" id="cycleMarkerOvu" aria-label="Eisprung (≈)">
+              <span class="star">★</span>
+            </div>
+
+            <!-- Sternschnuppe: Heute -->
+            <div class="cycleMarker today" id="cycleMarkerToday" aria-label="Heute">
+              <span class="meteor">✦</span>
+              <span class="tail" aria-hidden="true"></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="cycleProgressDates" id="cycleProgressDates">
+          <div class="cpDate left">
+            <div class="muted">Zyklusstart</div>
+            <div class="strong" id="cycleProgressStartDate">–</div>
+          </div>
+
+          <div class="cpDate ov" id="cycleProgressOvuWrap">
+            <div class="muted">Eisprung (≈)</div>
+            <div class="strong" id="cycleProgressOvuDate">–</div>
+          </div>
+
+          <div class="cpDate right">
+            <div class="muted">Nächster Zyklus</div>
+            <div class="strong" id="cycleProgressNextStart">–</div>
+          </div>
+        </div>
+      </div>
 
       
 
@@ -93,7 +139,10 @@
             <span class="badge" id="phaseBadge">–</span>
           </div>
         </div>
-        <div id="phaseTips" class="tips" style="margin-top:10px;"></div>
+        <div id="phaseMini" class="phaseMini" style="margin-top:10px;"></div>
+        <div class="rowBtns" style="margin-top:10px;justify-content:flex-end;">
+          <button class="btn" id="phaseMoreBtn" type="button">Details & Erklärungen in der Hormonkurve →</button>
+        </div>
         <div class="muted" style="margin-top:8px;font-size:12px;">
           Hinweise sind alltagstauglich & neutral formuliert (keine medizinische Beratung).
         </div>
@@ -112,11 +161,12 @@
     <!-- CALENDAR -->
     <section class="card view hidden" id="view-calendar">
       <div class="monthbar">
-        <button class="btn" id="prevBtn" type="button">‹</button>
+        <button class="btn monthNavBtn" id="prevBtn" type="button" aria-label="Vorheriger Monat">‹</button>
         <h2 id="monthTitle" class="center"></h2>
         <div class="monthbarRight">
+          <button class="btn monthTodayBtn" id="monthTodayBtn" type="button" title="Zurück zum aktuellen Monat">Heute</button>
           <button class="btn" id="shareSummaryBtn" type="button" title="Zusammenfassung als Bild teilen">Teilen</button>
-          <button class="btn" id="nextBtn" type="button">›</button>
+          <button class="btn monthNavBtn" id="nextBtn" type="button" aria-label="Nächster Monat">›</button>
         </div>
       </div>
 
@@ -124,7 +174,7 @@
         <span class="pill period">Periode</span>
         <span class="pill fertile">Fruchtbar (≈)</span>
         <span class="pill ovu">Eisprung (≈)</span>
-        <span class="pill predicted">Nächste Perioden (≈, 6 Zyklen)</span>
+        <span class="pill predicted">Nächste Perioden (≈, 12 Zyklen)</span>
         <span class="pill notes">Notiz</span>
       </div>
 
@@ -167,6 +217,18 @@
           Werte sind 0–1 skaliert (relativ).
         </div>
       </div>
+
+      <div class="card inner hormoneDetails" id="hormoneDetails" style="margin-top:12px;">
+        <div class="row" style="background:transparent;border:none;padding:0;align-items:flex-start;gap:12px;">
+          <div style="flex:1;">
+            <div class="muted">Heute: Mini-Übersicht</div>
+            <div class="strong" id="hormoneDetailsTitle">–</div>
+            <div class="muted" style="font-size:12px;margin-top:4px;" id="hormoneDetailsMeta">Tippe auf eine Kategorie, um mehr zu lesen.</div>
+            <div class="hExplain" id="hormoneExplain" style="margin-top:10px;"></div>
+          </div>
+        </div>
+        <div id="hormoneDetailsBody" class="hormoneDetailsBody" style="margin-top:10px;"></div>
+      </div>
     </section>
 
     <!-- STATS -->
@@ -177,7 +239,11 @@
       <h3 style="margin-top:14px;">Letzte 12 Zyklen inkl. Eisprung-Zyklustag</h3>
       <div id="last12"></div>
 
-      <p class="muted" style="margin-top:12px;">
+      
+
+      <h3 style="margin-top:14px;">Visualisierungen</h3>
+      <div id="statsCharts"></div>
+<p class="muted" style="margin-top:12px;">
         Hinweis: Eisprung/Fruchtbarkeit sind Näherungen. LH-positiv wird berücksichtigt (Eisprung ≈ LH+1 Tag).
       </p>
     </section>
@@ -186,6 +252,9 @@
     <section class="card view hidden" id="view-settings">
       <h2>Einstellungen</h2>
       <p class="muted">Diese Werte werden als Standard genutzt (du musst nicht jedes Mal Zykluslänge angeben).</p>
+
+      <!-- iPhone/Safari: gentle backup reminder (Files app) -->
+      <div id="iosBackupHint" class="card inner hidden" aria-live="polite"></div>
 
       <form id="settingsForm" class="form">
         <div class="grid2">
@@ -197,15 +266,20 @@
           </label>
         </div>
 
+        <label>Standard Eisprungtag (Zyklustag, optional)
+          <input type="number" id="setOvuDay" min="6" max="50" placeholder="z. B. 23" />
+        </label>
+
         <label class="inlineCheck">
           <input type="checkbox" id="setTtc" />
           Kinderwunsch aktiv (zeigt ET-/Sternzeichen-Infos & nimmt sie beim Teilen mit)
         </label>
 
-        <label>Standard Eisprungtag (Zyklustag, optional)
-          <input type="number" id="setOvuDay" min="6" max="50" placeholder="z. B. 23" />
+        <label>Warnungen erneut zeigen nach (Monate)
+          <input type="number" id="setWarnSnoozeMonths" min="1" max="24" value="6" />
         </label>
-
+		
+		
         <div class="grid2">
           <label>Mutter Sternzeichen (optional)
             <select id="setMotherSign">
@@ -274,31 +348,59 @@
       </div>
 
       <div class="card inner" style="margin-top:12px;">
-        <div class="strong">Automatisches Backup (Google Drive)</div>
+        <div class="strong">Auto-Backup (Datei)</div>
         <p class="muted" style="margin:6px 0 10px;font-size:12px;">
-          Optional: Wenn aktiviert, werden deine Daten (Blutungstage/Notizen/Einstellungen) nach <span class="strong">jeder Änderung</span>
-          automatisch in eine einzige Datei in Google Drive geschrieben (wird immer überschrieben).
+          Sichert deine Daten als <span class="strong">Datei außerhalb des Browsers</span> (Standardname: <span class="strong">lunacy-backup.json</span>).
+          In Chrome/Edge wird die Datei automatisch überschrieben. Auf iPhone/Safari nutzt du „In Dateien sichern“.
         </p>
 
-        <label class="inlineCheck">
-          <input type="checkbox" id="gdriveBackupEnabled" />
-          Backup aktivieren
-        </label>
-
-        <div class="rowBtns" style="margin-top:8px;">
-          <button class="btn" type="button" id="gdriveConnectBtn">Mit Google Drive verbinden</button>
-          <button class="btn" type="button" id="gdriveBackupNowBtn">Jetzt sichern</button>
+        <div class="grid2">
+          <button class="btn primary" type="button" id="backupEnableBtn">Auto-Backup aktivieren</button>
+          <button class="btn" type="button" id="backupNowBtn">Backup jetzt schreiben</button>
         </div>
 
-        <div class="muted" id="gdriveStatus" style="margin-top:10px;font-size:12px;">
-          Status: nicht verbunden.
+        <div class="grid2" style="margin-top:10px;">
+          <button class="btn" type="button" id="backupShareBtn">iPhone: In Dateien sichern</button>
+          <button class="btn danger" type="button" id="backupDisableBtn">Deaktivieren</button>
         </div>
+
+        <div class="muted" id="backupStatus" style="margin-top:10px;font-size:12px;">Status: –</div>
 
         <div class="muted" style="margin-top:8px;font-size:12px;">
-          Hinweis: Das Backup funktioniert nur, wenn diese Seite geöffnet ist und du Internet hast.
+          Tipp iPhone: Speichere in „Dateien“ (z. B. iCloud Drive) und überschreibe die Datei bei Bedarf. Import geht unten.
         </div>
       </div>
 
+      <div class="card inner" style="margin-top:12px;">
+        <div class="strong">Backup importieren (JSON)</div>
+        <p class="muted" style="margin:6px 0 10px;font-size:12px;">
+          Importiert eine zuvor gesicherte <span class="strong">lunacy-backup.json</span>.
+        </p>
+        <div class="grid2">
+          <label style="gap:6px;">
+            <span class="muted" style="font-size:12px;">Backup-Datei auswählen</span>
+            <input type="file" id="importBackupFile" accept="application/json,.json" />
+          </label>
+          <label class="inlineCheck" style="align-items:center;">
+            <input type="checkbox" id="importBackupReplace" />
+            Beim Import vorhandene Daten ersetzen
+          </label>
+        </div>
+      </div>
+
+      <div class="card inner" style="margin-top:12px;">
+        <div class="strong">Google/Apple Kalender (ICS)</div>
+        <p class="muted" style="margin:6px 0 10px;font-size:12px;">
+          Exportiert <span class="strong">Prognose</span> als <span class="strong">private Ganztags-Termine</span>: Periode (≈) und fruchtbare Tage (≈, Block).
+        </p>
+        <div class="grid2">
+          <button class="btn primary" type="button" id="exportIcsBtn">ICS exportieren</button>
+          <button class="btn" type="button" id="exportIcsInfoBtn" title="Hinweise">Hinweis</button>
+        </div>
+        <div class="muted" style="margin-top:8px;font-size:12px;">
+          Zeitraum: nächste 12 Monate. Import in Google Kalender: Einstellungen → Importieren → .ics wählen.
+        </div>
+      </div>
       <div class="muted" style="margin-top:12px;font-size:12px;">
         „Eisprungtag“ wird nur genutzt, wenn noch keine LH-positiv Daten vorhanden sind.
       </div>
@@ -306,7 +408,7 @@
   </main>
 
   <footer class="footer">
-    <small class="muted">Datenschutz: Standardmäßig bleiben Daten lokal auf deinem Gerät. Optional kannst du in den Einstellungen ein Google‑Drive‑Backup aktivieren.</small>
+    <small class="muted">Datenschutz: Daten bleiben auf deinem Gerät. Keine Cloud, kein Account.</small>
   </footer>
 
   <!-- Notes Modal -->
@@ -379,12 +481,15 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-  <!-- Google Identity Services (für optionales Google-Drive-Backup) -->
-  <script src="https://accounts.google.com/gsi/client" async defer></script>
   <script src="utils.js"></script>
   <script src="astro.js"></script>
-  <script src="driveBackup.js"></script>
+  <script src="backup.js"></script>
   <script src="app.js"></script>
+  <script src="stats_charts.js"></script>
+  <script src="icsExport.js"></script>
+  <script src="mittelschmerz_stats.js"></script>
+  <script src="warnings.js"></script>
   <script src="tips.js"></script>
+  <script src="cycleProgress.js"></script>
 </body>
 </html>

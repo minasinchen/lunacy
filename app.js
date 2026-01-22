@@ -6,13 +6,15 @@
 const KEY_BLEED   = "pt_bleed_v1";   // array of ISO dates with bleeding
 const KEY_NOTES   = "pt_notes_v1";   // {dateISO: [notes]}
 const KEY_SETTINGS= "pt_settings_v1";// {cycleLen,periodLen,ovuDay,motherSign,fatherSign,ttc}
+const KEY_LAST_CSV_BACKUP = "pt_last_csv_backup_v1"; // ISO timestamp of last manual CSV backup
+
+// iPhone/iPad Safari can't reliably auto-write a file outside the browser.
+// We therefore show a gentle reminder if the last *manual* export is too old.
+const IOS_BACKUP_REMIND_AFTER_DAYS = 14; // sensible default: every ~2 weeks
 
 // ---------- utils ----------
 function loadJSON(key, fallback){ try{const r=localStorage.getItem(key);return r?JSON.parse(r):fallback;}catch{return fallback;}}
-function saveJSON(key, v){
-  localStorage.setItem(key, JSON.stringify(v));
-  try{ window.__lunacyOnDataChanged?.(key, v); }catch{}
-}
+function saveJSON(key, v){ localStorage.setItem(key, JSON.stringify(v));}
 function uid(){ return crypto.randomUUID?crypto.randomUUID():String(Date.now())+"_"+Math.random().toString(16).slice(2);}
 
 function iso(d){
@@ -26,6 +28,64 @@ function diffDays(a,b){
   const aa=new Date(a.getFullYear(),a.getMonth(),a.getDate()).getTime();
   const bb=new Date(b.getFullYear(),b.getMonth(),b.getDate()).getTime();
   return Math.round((bb-aa)/ms);
+}
+
+function isIOSDevice(){
+  const ua = navigator.userAgent || "";
+  return /iPad|iPhone|iPod/.test(ua);
+}
+
+function getLastCsvBackupISO(){
+  try{ return String(localStorage.getItem(KEY_LAST_CSV_BACKUP) || ""); }catch{ return ""; }
+}
+
+function markCsvBackupNow(){
+  try{ localStorage.setItem(KEY_LAST_CSV_BACKUP, new Date().toISOString()); }catch{}
+}
+
+function renderIOSBackupHint(){
+  const el = document.getElementById("iosBackupHint");
+  if (!el) return;
+
+  // Only show on iOS devices (Safari/Chrome iOS etc.)
+  if (!isIOSDevice()){
+    el.classList.add("hidden");
+    el.innerHTML = "";
+    return;
+  }
+
+  const lastISO = getLastCsvBackupISO();
+  const now = new Date();
+  let daysAgo = null;
+  if (lastISO){
+    const last = new Date(lastISO);
+    if (!isNaN(last.getTime())) daysAgo = diffDays(last, now);
+  }
+
+  const needsReminder = (!lastISO) || (daysAgo !== null && daysAgo >= IOS_BACKUP_REMIND_AFTER_DAYS);
+  if (!needsReminder){
+    el.classList.add("hidden");
+    el.innerHTML = "";
+    return;
+  }
+
+  const lastText = (!lastISO || daysAgo === null) ? "Noch nie" : `vor ${daysAgo} Tag${daysAgo===1?"":"en"}`;
+  el.classList.remove("hidden");
+  el.innerHTML = `
+    <div class="iosHintTitle">📱 iPhone-Hinweis: Bitte Backup speichern</div>
+    <div class="iosHintMeta">Auf iOS kann ein Browser-Reset Daten löschen. Letztes CSV-Backup: <span class="strong">${escapeHtml(lastText)}</span>.</div>
+    <div class="rowBtns" style="margin-top:10px;">
+      <button class="btn primary" type="button" id="iosBackupCsvNowBtn">Jetzt CSV sichern</button>
+    </div>
+    <div class="muted" style="margin-top:8px;font-size:12px;">Tipp: In Safari kannst du die Datei in „Dateien“/iCloud Drive speichern.</div>
+  `;
+
+  document.getElementById("iosBackupCsvNowBtn")?.addEventListener("click", ()=>{
+    // mark first so the reminder disappears immediately even if download UI interrupts
+    markCsvBackupNow();
+    renderIOSBackupHint();
+    exportAllToCSV();
+  });
 }
 function between(d,a,b){ const t=d.getTime(); return t>=a.getTime() && t<=b.getTime();}
 function formatDateDE(dateOrISO){
@@ -47,7 +107,7 @@ function shortText(s, max=42){
 
 // ---------- settings ----------
 function loadSettings(){
-  const s = loadJSON(KEY_SETTINGS, { cycleLen: 28, periodLen: 5, ovuDay: null, motherSign: "", fatherSign: "", ttc: true });
+  const s = loadJSON(KEY_SETTINGS, { cycleLen: 28, periodLen: 5, ovuDay: null, motherSign: "", fatherSign: "", ttc: true, warnSnoozeMonths: 6 });
   return {
     cycleLen: clamp(Number(s.cycleLen||28), 15, 60),
     periodLen: clamp(Number(s.periodLen||5), 1, 14),
@@ -55,9 +115,17 @@ function loadSettings(){
     motherSign: String(s.motherSign||"").trim(),
     fatherSign: String(s.fatherSign||"").trim(),
     ttc: (typeof s.ttc === "boolean") ? s.ttc : true,
+    warnSnoozeMonths: clamp(Number(s.warnSnoozeMonths ?? 6), 1, 24),
   };
 }
-function saveSettings(s){ saveJSON(KEY_SETTINGS, s); }
+function saveSettings(s){
+  saveJSON(KEY_SETTINGS, s);
+  try{
+    if (window.LunacyBackup && typeof window.LunacyBackup.markDirty === "function"){
+      window.LunacyBackup.markDirty("settings");
+    }
+  }catch(e){}
+}
 
 // ---------- bleeding log ----------
 function loadBleedDays(){
@@ -65,7 +133,14 @@ function loadBleedDays(){
   const set = new Set(arr.filter(Boolean));
   return [...set].sort(); // ascending ISO
 }
-function saveBleedDays(days){ saveJSON(KEY_BLEED, days); }
+function saveBleedDays(days){
+  saveJSON(KEY_BLEED, days);
+  try{
+    if (window.LunacyBackup && typeof window.LunacyBackup.markDirty === "function"){
+      window.LunacyBackup.markDirty("bleed");
+    }
+  }catch(e){}
+}
 
 function addBleedDay(dateISO){
   const days = loadBleedDays();
@@ -130,7 +205,14 @@ function derivePeriodsFromBleed(daysISO){
 
 // ---------- notes ----------
 function loadNotesByDate(){ return loadJSON(KEY_NOTES, {}); }
-function saveNotesByDate(map){ saveJSON(KEY_NOTES, map); }
+function saveNotesByDate(map){
+  saveJSON(KEY_NOTES, map);
+  try{
+    if (window.LunacyBackup && typeof window.LunacyBackup.markDirty === "function"){
+      window.LunacyBackup.markDirty("notes");
+    }
+  }catch(e){}
+}
 
 function dayHasNotes(dateISO){
   const notes = (loadNotesByDate()[dateISO] || []);
@@ -196,7 +278,7 @@ function computePersonalOvulationOffset(periodsNewestFirst, notesByDate, fallbac
   return Math.round(offsets.reduce((s,x)=>s+x,0)/offsets.length);
 }
 
-function buildCalendarModel(periodsNewestFirst, forecastCycles=6){
+function buildCalendarModel(periodsNewestFirst, forecastCycles=12){
   const settings = loadSettings();
   if (!periodsNewestFirst.length){
     return { actualPeriods: [], forecastPeriods: [], fertileRanges: [], ovulationDaysISO: [], cycleLen: settings.cycleLen, periodLen: settings.periodLen, personalOvuOffset: (settings.ovuDay?settings.ovuDay-1:(settings.cycleLen-14)), latestStart: null };
@@ -225,7 +307,7 @@ function buildCalendarModel(periodsNewestFirst, forecastCycles=6){
   const ovulationDaysISO = [];
 
   // current cycle ovulation: priority LH+ > Mittelschmerz > Zervix (fadenziehend) > Standard
-  const nextStart = periodsNewestFirst.length > 1 ? periodsNewestFirst[1].start : addDays(latestStart, cycleLen);
+  const nextStart = addDays(latestStart, cycleLen);
   const currentOv = computeOvulationForCycle(latestStart, nextStart, { personalOvuOffset }, notesByDate);
   ovulationDaysISO.push(iso(currentOv.ovuDate));
   fertileRanges.push({ start: addDays(currentOv.ovuDate, -5), end: addDays(currentOv.ovuDate, 1) });
@@ -322,7 +404,14 @@ function rerenderToday(){
   const todayISO = iso(new Date());
   document.getElementById("bleedDate").value = todayISO;
 
+  // Sternschnuppen-Progressbar (Zyklus-Timeline) im Heute-View
+  if (typeof window.renderCycleProgress === "function"){
+    try{ window.renderCycleProgress(todayISO); }
+    catch(e){ console.warn("renderCycleProgress failed", e); }
+  }
+
   renderPhasePanel(todayISO);
+
 
   // defaults for range inputs
   const fromEl = document.getElementById("bleedFrom");
@@ -393,6 +482,38 @@ let viewDate = new Date();
 function startOfMonth(d){ return new Date(d.getFullYear(), d.getMonth(), 1); }
 function fmtMonth(d){ return d.toLocaleDateString("de-DE", { month:"long", year:"numeric" }); }
 
+// --- Moon phases (main 4 only) ---
+// Lightweight approximation (good enough for UI markers; not for astronomy).
+// We show only: New, First Quarter, Full, Last Quarter.
+function moonPhaseAgeDays(date){
+  // Reference new moon: 2000-01-06 18:14 UTC (common reference used in simple algorithms)
+  const synodic = 29.53058867;
+  const ref = Date.UTC(2000,0,6,18,14,0);
+  const t = Date.UTC(date.getFullYear(), date.getMonth(), date.getDate(), 12, 0, 0);
+  const days = (t - ref) / (1000*60*60*24);
+  const age = ((days % synodic) + synodic) % synodic;
+  return age;
+}
+
+function mainMoonPhaseForDate(date){
+  // Returns { key, emoji } or null
+  const age = moonPhaseAgeDays(date);
+  const phases = [
+    { key:"new",   at: 0.0,   emoji:"🌑", label:"Neumond" },
+    { key:"first", at: 7.38,  emoji:"🌓", label:"Erstes Viertel" },
+    { key:"full",  at: 14.77, emoji:"🌕", label:"Vollmond" },
+    { key:"last",  at: 22.15, emoji:"🌗", label:"Letztes Viertel" },
+  ];
+  // show if close to the phase day (±0.9 days)
+  let best = null;
+  for (const p of phases){
+    const d = Math.min(Math.abs(age - p.at), Math.abs((age + 29.53058867) - p.at), Math.abs(age - (p.at + 29.53058867)));
+    if (d <= 0.9 && (!best || d < best.d)) best = { d, p };
+  }
+  if (!best) return null;
+  return { key: best.p.key, emoji: best.p.emoji, label: best.p.label };
+}
+
 function renderNoteIcon(btn){
   // small note icon (SVG) — more visible than a dot
   const svg = document.createElementNS("http://www.w3.org/2000/svg","svg");
@@ -409,7 +530,7 @@ function renderNoteIcon(btn){
 function rerenderCalendar(){
   const days = loadBleedDays();
   const periods = derivePeriodsFromBleed(days);
-  const model = buildCalendarModel(periods, 6);
+  const model = buildCalendarModel(periods, 12);
 
   document.getElementById("monthTitle").textContent = fmtMonth(viewDate);
   const cal = document.getElementById("calendar");
@@ -444,6 +565,16 @@ function rerenderCalendar(){
     label.className="date";
     label.textContent=d.getDate();
     btn.appendChild(label);
+
+    // main moon phases (fun layer)
+    const mp = mainMoonPhaseForDate(dd);
+    if (mp){
+      const s = document.createElement("span");
+      s.className = "dayMoonIcon";
+      s.textContent = mp.emoji;
+      s.setAttribute("aria-label", mp.label);
+      btn.appendChild(s);
+    }
 
     if (periods.length){
       const isActual = inAny(model.actualPeriods, dd);
@@ -614,6 +745,8 @@ function rerenderHormones(){
     if (metaEl) metaEl.textContent = "Trage Blutungstage ein, dann kann Lunacy den aktuellen Zyklus modellieren.";
     const g = canvas.getContext("2d");
     g.clearRect(0,0,canvas.width,canvas.height);
+    // optional details renderer (tips.js)
+    if (typeof window.renderHormoneDetails === "function") window.renderHormoneDetails(null);
     return;
   }
 
@@ -732,8 +865,26 @@ function rerenderHormones(){
     g.fillText(label, lx, 6);
     g.restore();
   };
-  drawMarker(markerX(ovDay), `Eisprung (≈) • ZT ${ovDay}`, colLH);
+  drawMarker(markerX(ovDay), `Eisprung (≈) • ${formatDateDE(ctx0.ovuDate)} • ZT ${ovDay}`, colLH);
   drawMarker(markerX(dayInCycle), `Heute • ZT ${dayInCycle}`, text);
+
+  // optional details renderer (tips.js)
+  if (typeof window.renderHormoneDetails === "function" && typeof window.computePhaseForDate === "function"){
+    try{
+      const info = window.computePhaseForDate(todayISO, ctx0);
+      window.renderHormoneDetails({
+        todayISO,
+        phaseKey: info.phaseKey,
+        phaseLabel: info.phaseLabel,
+        dayInCycle: info.dayInCycle,
+        cycleLen: info.cycleLen,
+        ovText: info.ovText,
+        nextText: info.nextText,
+      });
+    }catch(e){
+      console.warn("renderHormoneDetails failed", e);
+    }
+  }
 }
 
 // ---------- sharing ----------
@@ -747,59 +898,116 @@ async function shareSummaryAsImage(){
 
   const h2c = (window.html2canvas || window.html2Canvas);
   if (typeof h2c !== "function"){
-    throw new Error("Screenshot-Bibliothek fehlt (html2canvas). Prüfe Internet/Adblock.");
+    throw new Error("html2canvas fehlt.");
   }
 
-  // Build a dedicated share card so the image always contains everything (incl. logo + month title)
+  /* -------------------------------
+     SHARE WRAP (Cosmic Card)
+  -------------------------------- */
   const wrap = document.createElement("div");
   wrap.setAttribute("aria-hidden","true");
   wrap.style.position = "fixed";
   wrap.style.left = "-99999px";
   wrap.style.top = "0";
   wrap.style.width = "980px";
-  wrap.style.padding = "18px";
-  wrap.style.border = "1px solid rgba(255,255,255,0.12)";
-  wrap.style.borderRadius = "22px";
-  wrap.style.background = getComputedStyle(document.body).background;
-  wrap.style.color = getComputedStyle(document.body).color;
+  wrap.style.padding = "32px";
+  wrap.style.borderRadius = "28px";
+  wrap.style.color = "#fbf7ff";
+  wrap.style.fontFamily = "ui-sans-serif, system-ui";
+  wrap.style.background =
+    "radial-gradient(900px 500px at 20% -10%, rgba(201,166,255,0.25), transparent 60%),"+
+    "radial-gradient(700px 500px at 90% 0%, rgba(247,217,120,0.18), transparent 55%),"+
+    "linear-gradient(180deg, #07051a, #140f33)";
 
+  /* -------------------------------
+     STAR CANVAS
+  -------------------------------- */
+  const stars = document.createElement("canvas");
+  stars.width = 980;
+  stars.height = 520;
+  stars.style.position = "absolute";
+  stars.style.inset = "0";
+  stars.style.zIndex = "0";
+
+  const sctx = stars.getContext("2d");
+  sctx.fillStyle = "transparent";
+  sctx.fillRect(0,0,stars.width,stars.height);
+
+  for (let i=0;i<140;i++){
+    const x = Math.random()*stars.width;
+    const y = Math.random()*stars.height;
+    const r = Math.random()*1.4 + 0.2;
+    const a = Math.random()*0.8 + 0.2;
+    sctx.beginPath();
+    sctx.arc(x,y,r,0,Math.PI*2);
+    sctx.fillStyle = `rgba(255,255,255,${a})`;
+    sctx.fill();
+  }
+
+  wrap.appendChild(stars);
+
+  /* -------------------------------
+     HEADER (Logo + Title)
+  -------------------------------- */
   const head = document.createElement("div");
   head.style.display = "flex";
   head.style.alignItems = "center";
-  head.style.gap = "12px";
-  head.style.marginBottom = "12px";
+  head.style.gap = "16px";
+  head.style.marginBottom = "20px";
+  head.style.position = "relative";
+  head.style.zIndex = "1";
 
   const img = document.createElement("img");
   img.src = "logo.png";
   img.alt = "Lunacy";
-  img.style.width = "44px";
-  img.style.height = "44px";
-  img.style.borderRadius = "16px";
-  img.style.border = "1px solid rgba(255,255,255,0.20)";
+  img.style.width = "56px";
+  img.style.height = "56px";
+  img.style.borderRadius = "18px";
+  img.style.border = "1px solid rgba(255,255,255,0.25)";
+  img.style.boxShadow = "0 0 24px rgba(247,217,120,0.35)";
 
   const tbox = document.createElement("div");
   const t1 = document.createElement("div");
   t1.textContent = "Lunacy";
   t1.style.fontWeight = "900";
-  t1.style.fontSize = "18px";
+  t1.style.fontSize = "22px";
+  t1.style.color = "#f7d978";
+
   const t2 = document.createElement("div");
   t2.textContent = month || "";
-  t2.style.opacity = "0.78";
-  t2.style.fontSize = "13px";
+  t2.style.opacity = "0.8";
+  t2.style.fontSize = "14px";
+
   tbox.appendChild(t1);
   tbox.appendChild(t2);
 
   head.appendChild(img);
   head.appendChild(tbox);
 
+  /* -------------------------------
+     CONTENT CARD
+  -------------------------------- */
+  const card = document.createElement("div");
+  card.style.position = "relative";
+  card.style.zIndex = "1";
+  card.style.background = "rgba(24,16,52,0.88)";
+  card.style.border = "1px solid rgba(255,255,255,0.14)";
+  card.style.borderRadius = "22px";
+  card.style.padding = "18px";
+  card.style.boxShadow = "0 20px 60px rgba(0,0,0,0.45)";
+
   const cloned = summaryEl.cloneNode(true);
   cloned.style.margin = "0";
 
+  card.appendChild(cloned);
+
   wrap.appendChild(head);
-  wrap.appendChild(cloned);
+  wrap.appendChild(card);
   document.body.appendChild(wrap);
 
-  // Render high-ish res while keeping file size reasonable
+  /* -------------------------------
+     RENDER IMAGE
+  -------------------------------- */
   const canvas = await h2c(wrap, {
     backgroundColor: null,
     scale: Math.min(2, window.devicePixelRatio || 1),
@@ -808,30 +1016,27 @@ async function shareSummaryAsImage(){
 
   document.body.removeChild(wrap);
 
-  const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png", 0.92));
-  if (!blob) throw new Error("Konnte Bild nicht erzeugen.");
+  const blob = await new Promise(res => canvas.toBlob(res, "image/png", 0.92));
+  if (!blob) throw new Error("Bild konnte nicht erzeugt werden.");
 
   const filename = `lunacy_${iso(new Date())}.png`;
   const file = new File([blob], filename, { type: "image/png" });
 
-  const canShareFiles = !!(navigator.share && navigator.canShare && navigator.canShare({ files: [file] }));
-  if (canShareFiles){
-    await navigator.share({ title, text: "Zyklus-Zusammenfassung (≈)", files: [file] });
+  if (navigator.share && navigator.canShare?.({ files:[file] })){
+    await navigator.share({ title, files:[file] });
     return;
   }
 
-  // fallback: download
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
   a.download = filename;
   document.body.appendChild(a);
   a.click();
-  setTimeout(()=>{
-    URL.revokeObjectURL(url);
-    document.body.removeChild(a);
-  }, 0);
-  alert("Dein Gerät/Browser unterstützt das direkte Teilen nicht. Das Bild wurde stattdessen heruntergeladen.");
+  URL.revokeObjectURL(url);
+  document.body.removeChild(a);
+
+  alert("Dein Browser unterstützt Teilen nicht direkt – Bild wurde heruntergeladen.");
 }
 
 // ---------- STATS ----------
@@ -871,6 +1076,9 @@ function computeOvulationForCycle(periodStart, nextStart, model, notesByDate){
   return { ovuDate, zt, reasonCode:"STANDARD", reasonText:`Standard (Offset Tag ${model.personalOvuOffset+1})`, note: null };
 }
 
+// expose for stats modules
+window.computeOvulationForCycle = computeOvulationForCycle;
+
 function rerenderStats(){
   const days = loadBleedDays();
   const periods = derivePeriodsFromBleed(days);
@@ -905,7 +1113,7 @@ function rerenderStats(){
   const variability = stdCycle < 1.5 ? "sehr stabil" : stdCycle < 3.5 ? "relativ stabil" : stdCycle < 6 ? "wechselhaft" : "stark wechselhaft";
 
   // build model for ovulation offset
-  const model = buildCalendarModel(periods, 6);
+  const model = buildCalendarModel(periods, 12);
   const notesByDate = loadNotesByDate();
 
   statsSummary.innerHTML = `
@@ -961,10 +1169,195 @@ function rerenderStats(){
   `).join("");
 
   last12.innerHTML = `<div class="tableGrid" style="grid-template-columns:1fr 1fr 1fr 2fr;">${head}${desktopCells}${mobileCards}</div>`;
+
+  // ---- Mittelschmerz-Statistik (optional module) ----
+  if (typeof window.renderMittelschmerzStats === "function"){
+    try{
+      window.renderMittelschmerzStats({
+        periods,
+        model,
+        notesByDate,
+        avgCycle,
+        // helpers
+        formatDateDE,
+        diffDays,
+        addDays,
+        parseISO,
+        between,
+        escapeHtml,
+        shortText,
+        computeOvulationForCycle,
+      });
+    }catch(e){
+      console.warn("renderMittelschmerzStats failed", e);
+    }
+  }
+
+  // ---- Charts: Eisprung-ZT Histogramm + Zykluslängen-Linie (optional module) ----
+  if (typeof window.renderStatsCharts === "function"){
+    try{
+      window.renderStatsCharts({
+        periods,
+        model,
+        notesByDate,
+        avgCycle,
+        // helpers
+        formatDateDE,
+        diffDays,
+        addDays,
+        parseISO,
+        between,
+        escapeHtml,
+        computeOvulationForCycle,
+        iso,
+      });
+    }catch(e){
+      console.warn("renderStatsCharts failed", e);
+    }
+  }
+
 }
 
 // ---------- NOTES MODAL ----------
 let currentNotesDate = null;
+let editingNoteId = null; // when set: we are editing an existing note
+
+// Per note type: which subfields should be shown + which result options exist.
+const NOTE_TYPE_CONFIG = {
+  LH: {
+    showResult: true,
+    resultOptions: ["negativ","positiv","unsicher"],
+    showSide: false,
+    showIntensity: false,
+  },
+  HCG: {
+    showResult: true,
+    resultOptions: ["negativ","positiv","unsicher"],
+    showSide: false,
+    showIntensity: false,
+  },
+  MITTELSCHMERZ: {
+    showResult: false,
+    resultOptions: [],
+    showSide: true,
+    showIntensity: true,
+  },
+  ZERVIX: {
+    showResult: true,
+    // Simple & common categories. "fadenziehend" is important for your ovulation heuristic.
+    resultOptions: ["trocken","klebrig","cremig","wässrig","fadenziehend"],
+    showSide: false,
+    showIntensity: false,
+  },
+  SCHMERZ: {
+    showResult: false,
+    resultOptions: [],
+    showSide: true,
+    showIntensity: true,
+  },
+  SYMPTOM: {
+    showResult: false,
+    resultOptions: [],
+    showSide: false,
+    showIntensity: false,
+  },
+};
+
+function setSelectOptions(selectEl, values, keepValue){
+  if (!selectEl) return;
+  const cur = keepValue ? selectEl.value : "";
+  const opts = ["", ...(values||[])];
+  selectEl.innerHTML = opts.map(v => {
+    const label = v ? v : "–";
+    const val = v;
+    return `<option value="${escapeHtml(val)}">${escapeHtml(label)}</option>`;
+  }).join("");
+  if (keepValue && opts.includes(cur)) selectEl.value = cur;
+  else selectEl.value = "";
+}
+
+function updateNoteFormFields(type){
+  const cfg = NOTE_TYPE_CONFIG[type] || NOTE_TYPE_CONFIG.SYMPTOM;
+
+  const resultEl = document.getElementById("noteResult");
+  const sideEl = document.getElementById("noteSide");
+  const intEl = document.getElementById("noteIntensity");
+
+  const resultLabel = resultEl?.closest("label") || null;
+  const sideLabel = sideEl?.closest("label") || null;
+  const intLabel = intEl?.closest("label") || null;
+
+  if (resultLabel){
+    resultLabel.classList.toggle("hidden", !cfg.showResult);
+    if (cfg.showResult){
+      setSelectOptions(resultEl, cfg.resultOptions, true);
+    } else {
+      // keep DOM stable, but clear
+      setSelectOptions(resultEl, [], false);
+    }
+  }
+
+  if (sideLabel){
+    sideLabel.classList.toggle("hidden", !cfg.showSide);
+    if (!cfg.showSide && sideEl) sideEl.value = "";
+  }
+
+  if (intLabel){
+    intLabel.classList.toggle("hidden", !cfg.showIntensity);
+    if (!cfg.showIntensity && intEl) intEl.value = 0;
+  }
+}
+
+function setNoteEditingState(noteOrNull){
+  const submitBtn = document.querySelector("#noteForm button[type='submit']");
+  const clearBtn = document.getElementById("noteClearBtn");
+  if (noteOrNull){
+    editingNoteId = noteOrNull.id;
+    if (submitBtn) submitBtn.textContent = "Änderungen speichern";
+    if (clearBtn) clearBtn.textContent = "Abbrechen";
+  } else {
+    editingNoteId = null;
+    if (submitBtn) submitBtn.textContent = "Notiz speichern";
+    if (clearBtn) clearBtn.textContent = "Eingaben leeren";
+  }
+}
+
+function startEditNote(noteId){
+  if (!currentNotesDate) return;
+  const notesByDate = loadNotesByDate();
+  const notes = notesByDate[currentNotesDate] || [];
+  const n = notes.find(x => x && x.id === noteId);
+  if (!n) return;
+
+  // Fill form
+  const typeEl = document.getElementById("noteType");
+  const resultEl = document.getElementById("noteResult");
+  const sideEl = document.getElementById("noteSide");
+  const intEl = document.getElementById("noteIntensity");
+  const textEl = document.getElementById("noteText");
+
+  if (typeEl) typeEl.value = n.type || "SYMPTOM";
+  updateNoteFormFields(typeEl?.value || n.type || "SYMPTOM");
+
+  if (resultEl) resultEl.value = n.result || "";
+  if (sideEl) sideEl.value = n.side || "";
+  if (intEl) intEl.value = (typeof n.intensity === "number") ? n.intensity : 0;
+  if (textEl) textEl.value = n.text || "";
+
+  setNoteEditingState(n);
+
+  // Scroll form into view (useful on mobile)
+  document.getElementById("noteForm")?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function cancelEditNote(){
+  setNoteEditingState(null);
+  document.getElementById("noteForm")?.reset();
+  document.getElementById("noteIntensity").value = 0;
+  // keep correct field visibility for the current type selection
+  const type = document.getElementById("noteType")?.value || "SYMPTOM";
+  updateNoteFormFields(type);
+}
 function labelForType(t){
   return ({ "LH":"LH-Test","HCG":"Schwangerschaftstest","MITTELSCHMERZ":"Mittelschmerz","ZERVIX":"Zervixschleim","SCHMERZ":"Schmerz","SYMPTOM":"Symptom / Notiz" }[t]||t);
 }
@@ -972,11 +1365,14 @@ function openNotes(dateISO){
   currentNotesDate = dateISO;
   document.getElementById("notesTitle").textContent = formatDateDE(dateISO);
   document.getElementById("notesModal").classList.remove("hidden");
+  // reset form state when opening
+  cancelEditNote();
   renderNotesList();
 }
 function closeNotes(){
   document.getElementById("notesModal").classList.add("hidden");
   currentNotesDate = null;
+  setNoteEditingState(null);
 }
 
 function renderNotesList(){
@@ -999,10 +1395,21 @@ function renderNotesList(){
           ${n.text?`<div style="margin-top:6px;">${escapeHtml(n.text)}</div>`:""}
           ${badges.length?`<div class="badges">${badges.map(b=>`<span class="badge">${escapeHtml(b)}</span>`).join("")}</div>`:""}
         </div>
-        <button class="btn small" type="button" data-del-note="${n.id}">Löschen</button>
+        <div class="rowBtns" style="justify-content:flex-end;">
+          <button class="btn small" type="button" data-edit-note="${n.id}">Bearbeiten</button>
+          <button class="btn small" type="button" data-del-note="${n.id}">Löschen</button>
+        </div>
       </div>
     `;
   }).join("");
+
+  list.querySelectorAll("[data-edit-note]").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      const id = btn.getAttribute("data-edit-note");
+      if (!id) return;
+      startEditNote(id);
+    });
+  });
 
   list.querySelectorAll("[data-del-note]").forEach(btn=>{
     btn.addEventListener("click", ()=>{
@@ -1010,6 +1417,7 @@ function renderNotesList(){
       const notesByDate = loadNotesByDate();
       notesByDate[currentNotesDate] = (notesByDate[currentNotesDate]||[]).filter(x=>x.id!==id);
       saveNotesByDate(notesByDate);
+      if (editingNoteId === id) cancelEditNote();
       renderNotesList();
       rerenderCalendar();
       rerenderStats();
@@ -1195,6 +1603,8 @@ function renderSettingsForm(){
   const s = loadSettings();
   document.getElementById("setCycleLen").value = s.cycleLen;
   document.getElementById("setPeriodLen").value = s.periodLen;
+  const ws = document.getElementById("setWarnSnoozeMonths");
+  if (ws) ws.value = s.warnSnoozeMonths ?? 6;
   const ttcEl = document.getElementById("setTtc");
   if (ttcEl) ttcEl.checked = !!s.ttc;
   document.getElementById("setOvuDay").value = s.ovuDay ?? "";
@@ -1262,9 +1672,70 @@ function init(){
     rerenderCalendar();
   });
 
+  // jump back to current month
+  document.getElementById("monthTodayBtn")?.addEventListener("click", ()=>{
+    const now = new Date();
+    viewDate = new Date(now.getFullYear(), now.getMonth(), 1);
+    rerenderCalendar();
+  });
+
+  // swipe navigation on the calendar grid (mobile)
+  (function bindCalendarSwipe(){
+    const cal = document.getElementById("calendar");
+    if (!cal) return;
+    let sx = 0, sy = 0, st = 0;
+    cal.addEventListener("touchstart", (ev)=>{
+      const t = ev.touches && ev.touches[0];
+      if (!t) return;
+      sx = t.clientX; sy = t.clientY; st = Date.now();
+    }, { passive: true });
+    cal.addEventListener("touchend", (ev)=>{
+      const t = ev.changedTouches && ev.changedTouches[0];
+      if (!t) return;
+      const dx = t.clientX - sx;
+      const dy = t.clientY - sy;
+      const dt = Date.now() - st;
+      // must be a fairly quick horizontal swipe
+      if (dt > 700) return;
+      if (Math.abs(dx) < 60) return;
+      if (Math.abs(dx) < Math.abs(dy)) return;
+
+      // only if calendar view is visible
+      const view = document.getElementById("view-calendar");
+      if (!view || view.classList.contains("hidden")) return;
+
+      if (dx < 0){
+        viewDate = new Date(viewDate.getFullYear(), viewDate.getMonth()+1, 1);
+      } else {
+        viewDate = new Date(viewDate.getFullYear(), viewDate.getMonth()-1, 1);
+      }
+      rerenderCalendar();
+    }, { passive: true });
+  })();
+
+  // keyboard navigation (desktop)
+  document.addEventListener("keydown", (ev)=>{
+    const view = document.getElementById("view-calendar");
+    if (!view || view.classList.contains("hidden")) return;
+    if (ev.key === "ArrowLeft"){
+      viewDate = new Date(viewDate.getFullYear(), viewDate.getMonth()-1, 1);
+      rerenderCalendar();
+    } else if (ev.key === "ArrowRight"){
+      viewDate = new Date(viewDate.getFullYear(), viewDate.getMonth()+1, 1);
+      rerenderCalendar();
+    }
+  });
+
   // notes modal close
   document.querySelector("#notesModal [data-close='1']").addEventListener("click", closeNotes);
   document.getElementById("notesClose").addEventListener("click", closeNotes);
+
+  // dynamic note subfields
+  document.getElementById("noteType")?.addEventListener("change", (ev)=>{
+    updateNoteFormFields(ev.target.value);
+  });
+  // initial config for modal (in case user opens quickly)
+  updateNoteFormFields(document.getElementById("noteType")?.value || "LH");
 
   // note save
   document.getElementById("noteForm").addEventListener("submit", (ev)=>{
@@ -1272,20 +1743,47 @@ function init(){
     if (!currentNotesDate) return;
 
     const type = document.getElementById("noteType").value;
-    const result = document.getElementById("noteResult").value;
-    const side = document.getElementById("noteSide").value;
-    const intensity = clamp(Number(document.getElementById("noteIntensity").value||0), 0, 10);
-    const text = (document.getElementById("noteText").value||"").trim();
+    // Ensure visibility + options are correct even if something changed programmatically
+    updateNoteFormFields(type);
 
-    const note = { id: uid(), type, result: result||null, side: side||null, intensity, text: text||null, createdAt: new Date().toISOString() };
+    const cfg = NOTE_TYPE_CONFIG[type] || NOTE_TYPE_CONFIG.SYMPTOM;
+    const result = cfg.showResult ? document.getElementById("noteResult").value : "";
+    const side = cfg.showSide ? document.getElementById("noteSide").value : "";
+    const intensity = cfg.showIntensity ? clamp(Number(document.getElementById("noteIntensity").value||0), 0, 10) : 0;
+    const text = (document.getElementById("noteText").value||"").trim();
 
     const notesByDate = loadNotesByDate();
     notesByDate[currentNotesDate] = notesByDate[currentNotesDate] || [];
-    notesByDate[currentNotesDate].push(note);
+
+    if (editingNoteId){
+      // update existing
+      const idx = (notesByDate[currentNotesDate]||[]).findIndex(n => n && n.id === editingNoteId);
+      if (idx >= 0){
+        const old = notesByDate[currentNotesDate][idx];
+        notesByDate[currentNotesDate][idx] = {
+          ...old,
+          type,
+          result: (result||null),
+          side: (side||null),
+          intensity,
+          text: (text||null),
+          // keep createdAt to preserve original ordering intent
+        };
+      } else {
+        // fallback: if not found, create new
+        notesByDate[currentNotesDate].push({ id: uid(), type, result: result||null, side: side||null, intensity, text: text||null, createdAt: new Date().toISOString() });
+      }
+    } else {
+      // create new
+      notesByDate[currentNotesDate].push({ id: uid(), type, result: result||null, side: side||null, intensity, text: text||null, createdAt: new Date().toISOString() });
+    }
+
     saveNotesByDate(notesByDate);
 
     ev.target.reset();
     document.getElementById("noteIntensity").value = 0;
+    setNoteEditingState(null);
+    updateNoteFormFields(document.getElementById("noteType")?.value || "LH");
 
     renderNotesList();
     rerenderCalendar();
@@ -1293,8 +1791,13 @@ function init(){
   });
 
   document.getElementById("noteClearBtn")?.addEventListener("click", ()=>{
+    if (editingNoteId){
+      cancelEditNote();
+      return;
+    }
     document.getElementById("noteForm")?.reset();
     document.getElementById("noteIntensity").value = 0;
+    updateNoteFormFields(document.getElementById("noteType")?.value || "LH");
   });
 
   // share: calendar summary as image
@@ -1312,6 +1815,7 @@ function init(){
     ev.preventDefault();
     const cycleLen = clamp(Number(document.getElementById("setCycleLen").value||28), 15, 60);
     const periodLen = clamp(Number(document.getElementById("setPeriodLen").value||5), 1, 14);
+    const warnSnoozeMonths = clamp(Number(document.getElementById("setWarnSnoozeMonths")?.value || 6), 1, 24);
     const ttc = !!document.getElementById("setTtc")?.checked;
     const ovuRaw = document.getElementById("setOvuDay").value;
     const ovuDay = (ovuRaw === "" || ovuRaw === null) ? null : clamp(Number(ovuRaw), 6, 50);
@@ -1324,7 +1828,23 @@ function init(){
 
   // CSV export/import
   document.getElementById("exportCsvBtn")?.addEventListener("click", ()=>{
+    // For iOS users we show a reminder; store the timestamp when the user exports.
+    markCsvBackupNow();
+    renderIOSBackupHint();
     exportAllToCSV();
+  });
+
+  // ICS export (Google/Apple Kalender)
+  document.getElementById("exportIcsBtn")?.addEventListener("click", ()=>{
+    if (typeof window.exportCalendarICS !== "function"){
+      alert("ICS-Export ist nicht verfügbar. Prüfe, ob icsExport.js geladen wird.");
+      return;
+    }
+    window.exportCalendarICS({ includePeriod:true, includeFertile:true });
+  });
+
+  document.getElementById("exportIcsInfoBtn")?.addEventListener("click", ()=>{
+    alert("ICS-Import in Google Kalender:\n1) Google Kalender (Web) öffnen\n2) Einstellungen → Importieren & Exportieren\n3) .ics auswählen und importieren\n\nHinweis: Lunacy exportiert private Ganztags-Termine als Prognose (≈) für die nächsten 12 Monate.");
   });
 
   document.getElementById("importCsvFile")?.addEventListener("change", async (ev)=>{
@@ -1348,29 +1868,16 @@ function init(){
     localStorage.removeItem(KEY_BLEED);
     localStorage.removeItem(KEY_NOTES);
     localStorage.removeItem(KEY_SETTINGS);
-    try{ window.__lunacyOnDataChanged?.("__reset__", null); }catch{}
+    localStorage.removeItem(KEY_LAST_CSV_BACKUP);
     rerenderToday(); rerenderCalendar(); rerenderStats(); rerenderHormones();
   });
-
-  // Google-Drive-Backup: stellt Daten-Payload bereit
-  window.__lunacyGetBackupPayload = () => ({
-    app: "Lunacy",
-    format: "lunacy_backup_json",
-    version: 1,
-    exportedAt: new Date().toISOString(),
-    bleed: loadBleed(),
-    notes: loadNotesByDate(),
-    settings: loadSettings(),
-  });
-
-  // Google-Drive-Backup initialisieren (optional)
-  try{ window.LunacyDriveBackup?.init?.(); }catch{}
 
   // initial
   rerenderToday();
   rerenderCalendar();
   rerenderStats();
   rerenderHormones();
+  renderIOSBackupHint();
   setView("today");
 }
 
