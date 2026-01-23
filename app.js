@@ -922,6 +922,7 @@ async function shareSummaryAsImage(){
      SHARE WRAP (Cosmic Card)
   -------------------------------- */
   const wrap = document.createElement("div");
+  wrap.classList.add("shareDesktop");
   wrap.setAttribute("aria-hidden","true");
   wrap.style.position = "fixed";
   wrap.style.left = "-99999px";
