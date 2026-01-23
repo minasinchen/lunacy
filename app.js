@@ -332,14 +332,27 @@ function setView(name){
   document.querySelectorAll(".view").forEach(v=>v.classList.add("hidden"));
   document.getElementById(`view-${name}`).classList.remove("hidden");
 
-  document.querySelectorAll(".nav .btn").forEach(b=>b.classList.remove("primary"));
-  const active = document.querySelector(`.nav .btn[data-view='${name}']`);
-  if (active) active.classList.add("primary");
+  // Desktop tabs (text buttons)
+  document.querySelectorAll(".navDesktop .tabBtn").forEach(b=>{
+    b.classList.remove("primary");
+    b.removeAttribute("aria-current");
+  });
+  const activeDesk = document.querySelector(`.navDesktop .tabBtn[data-view='${name}']`);
+  if (activeDesk){
+    activeDesk.classList.add("primary");
+    activeDesk.setAttribute("aria-current","page");
+  }
 
-  // mobile icon nav (if present)
-  document.querySelectorAll(".iconNav .iconTab").forEach(b=>b.classList.remove("primary"));
-  const activeIcon = document.querySelector(`.iconNav .iconTab[data-view='${name}']`);
-  if (activeIcon) activeIcon.classList.add("primary");
+  // Mobile tabs (icon buttons)
+  document.querySelectorAll(".navMobile .mTab").forEach(b=>{
+    b.classList.remove("active");
+    b.removeAttribute("aria-current");
+  });
+  const activeMob = document.querySelector(`.navMobile .mTab[data-view='${name}']`);
+  if (activeMob){
+    activeMob.classList.add("active");
+    activeMob.setAttribute("aria-current","page");
+  }
 
   if (name==="calendar") rerenderCalendar();
   if (name==="hormones") rerenderHormones();
@@ -1635,18 +1648,12 @@ function init(){
   const todayISO = iso(new Date());
   document.getElementById("bleedDate").value = todayISO;
 
-  // nav
-  document.querySelectorAll(".nav .btn").forEach(btn=>{
-    btn.addEventListener("click", ()=>setView(btn.getAttribute("data-view")));
+  // nav (desktop + mobile)
+  document.querySelectorAll(".navDesktop .tabBtn, .navMobile .mTab").forEach(btn=>{
+    btn.addEventListener("click", ()=> setView(btn.getAttribute("data-view")));
   });
 
-
-  // mobile icon nav (same data-view)
-  document.querySelectorAll(".iconNav .iconTab").forEach(btn=>{
-    btn.addEventListener("click", ()=>setView(btn.getAttribute("data-view")));
-  });
-
-  // today buttons
+// today buttons
   document.getElementById("bleedTodayBtn").addEventListener("click", ()=>{
     const t = iso(new Date());
     const days = loadBleedDays();
