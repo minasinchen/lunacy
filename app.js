@@ -35,6 +35,23 @@ function isIOSDevice(){
   return /iPad|iPhone|iPod/.test(ua);
 }
 
+
+function isTouchDevice(){
+  try{
+    return (navigator.maxTouchPoints && navigator.maxTouchPoints > 0) ||
+           (window.matchMedia && window.matchMedia("(hover: none) and (pointer: coarse)").matches);
+  }catch(_e){ return false; }
+}
+
+function shouldUseMobileTabs(){
+  const w = Math.min(window.innerWidth || 0, document.documentElement.clientWidth || 0) || 0;
+  return isTouchDevice() && w <= 980;
+}
+
+function applyNavMode(){
+  document.documentElement.classList.toggle("useMobileTabs", shouldUseMobileTabs());
+}
+
 function getLastCsvBackupISO(){
   try{ return String(localStorage.getItem(KEY_LAST_CSV_BACKUP) || ""); }catch{ return ""; }
 }
@@ -332,14 +349,9 @@ function setView(name){
   document.querySelectorAll(".view").forEach(v=>v.classList.add("hidden"));
   document.getElementById(`view-${name}`).classList.remove("hidden");
 
-  document.querySelectorAll(".nav .btn").forEach(b=>b.classList.remove("primary"));
-  const active = document.querySelector(`.nav .btn[data-view='${name}']`);
+  document.querySelectorAll(".nav .btn, .navIcons .tab").forEach(b=>b.classList.remove("primary"));
+  const active = document.querySelector(`.nav .btn[data-view='${name}'], .navIcons .tab[data-view='${name}']`);
   if (active) active.classList.add("primary");
-
-  // mobile icon nav (if present)
-  document.querySelectorAll(".iconNav .iconTab").forEach(b=>b.classList.remove("primary"));
-  const activeIcon = document.querySelector(`.iconNav .iconTab[data-view='${name}']`);
-  if (activeIcon) activeIcon.classList.add("primary");
 
   if (name==="calendar") rerenderCalendar();
   if (name==="hormones") rerenderHormones();
@@ -1637,12 +1649,6 @@ function init(){
 
   // nav
   document.querySelectorAll(".nav .btn").forEach(btn=>{
-    btn.addEventListener("click", ()=>setView(btn.getAttribute("data-view")));
-  });
-
-
-  // mobile icon nav (same data-view)
-  document.querySelectorAll(".iconNav .iconTab").forEach(btn=>{
     btn.addEventListener("click", ()=>setView(btn.getAttribute("data-view")));
   });
 

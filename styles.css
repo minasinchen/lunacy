@@ -1092,73 +1092,69 @@ input, button {
 }
 
 
-/* === Lunacy Mobile Icon Tabs (minimal, keeps original desktop) === */
-.iconNav{ display:none; }
+/* =========================
+   Mobile Icon Tabs (very conservative, opt-in via html.useMobileTabs)
+   ========================= */
 
-.iconTab{
-  border: 1px solid var(--line);
-  background: rgba(255,255,255,0.03);
-  color: var(--text);
-  border-radius: 14px;
+.navIcons{ display:none; }
+
+html.useMobileTabs .topbar{
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 10px;
+}
+
+html.useMobileTabs .nav{ display:none !important; }
+
+html.useMobileTabs .brandSubtitle{ display:none; }
+
+html.useMobileTabs .navIcons{
+  display:grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+  padding: 4px 2px 2px;
+  border-top: 1px solid rgba(255,255,255,0.10);
+}
+
+html.useMobileTabs .navIcons .tab{
+  border: 0;
+  background: transparent;
+  color: var(--muted);
   padding: 10px 6px 8px;
+  border-radius: 14px;
   display:flex;
   flex-direction:column;
   align-items:center;
   justify-content:center;
-  gap:6px;
-  min-height: 56px;
-  cursor:pointer;
+  gap: 6px;
+  min-height: 58px;
 }
-.iconTab img{
+
+html.useMobileTabs .navIcons .tabIcon{
   width: 22px;
   height: 22px;
-  display:block;
+  object-fit: contain;
   opacity: 0.92;
-  filter: drop-shadow(0 2px 10px rgba(0,0,0,0.55));
+  filter: drop-shadow(0 2px 10px rgba(0,0,0,0.45));
 }
-.iconTab span{
+
+html.useMobileTabs .navIcons .tabLabel{
   font-size: 10px;
   line-height: 1;
-  color: rgba(207,198,234,0.92);
+  letter-spacing: 0.2px;
 }
-.iconTab.primary{
-  background: rgba(245,211,106,0.12);
-  border-color: rgba(245,211,106,0.32);
+
+html.useMobileTabs .navIcons .tab.primary{
+  background: rgba(245,211,106,0.14);
+  border: 1px solid rgba(245,211,106,0.30);
+  color: var(--text);
 }
-.iconTab.primary span{ color: var(--text); }
 
-/* Use icons ONLY on touch devices, and only up to tablet widths.
-   This avoids "double nav" on phones with larger CSS widths or desktop browsers. */
-@media (max-width: 980px) and (hover: none) and (pointer: coarse){
-  .topbar{
-    flex-direction: column;
-    align-items: stretch;
-    gap: 10px;
-    padding: 10px 12px;
-  }
+html.useMobileTabs .navIcons .tab.primary .tabIcon{ opacity: 1; }
 
-  /* Line 1: brand (logo + wordmark) */
-  .brand{ min-width: 0; }
-  .brandSubtitle{ display:none; }
-  .logoWordmark{ max-width: 150px; }
+html.useMobileTabs .navIcons .tab:active{ transform: translateY(1px); }
 
-  /* Hide desktop nav row on mobile */
-  .nav{ display:none; }
-
-  /* Line 2: icon tabs */
-  .iconNav{
-    display:grid;
-    grid-template-columns: repeat(5, 1fr);
-    gap: 8px;
-    padding-top: 4px;
-    border-top: 1px solid var(--line);
-  }
-
-  /* Make "Heute" entry screen start higher: keep original layout, only hide the duplicate heading/intro */
-  #view-today > h2{ display:none; }
-  #view-today > p.muted{ display:none; }
-
-  .container{ margin-top: 10px; }
-}
-/* === End Mobile Icon Tabs === */
-
+/* Save vertical space in "Heute" so overview + primary button are visible without scrolling (best effort) */
+html.useMobileTabs #view-today > h2,
+html.useMobileTabs #view-today > p.muted{ display:none; }
