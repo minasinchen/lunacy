@@ -1271,9 +1271,7 @@ input, button {
    SHARE IMAGE: immer Desktop-Look – auch auf Mobile
    (html2canvas Screenshot)
    ========================================================= */
-.shareDesktop .tableGrid{
-  grid-template-columns: 1fr 1fr 1fr 2fr; /* wie Desktop im Stats/Last12 */
-}
+
 
 .shareDesktop .tableGrid .th{
   display: block;
@@ -1283,16 +1281,32 @@ input, button {
   border-bottom: 1px solid rgba(255,255,255,0.08);
 }
 
-/* Mobile-Cards in Tabellen im Share-Bild deaktivieren */
+/* 1) Mobile-Card-Variante im Share aus */
 .shareDesktop .tableGrid .rowCard{
   display: none !important;
 }
 
+/* 2) Desktop-Header (th) im Share wieder ein */
+.shareDesktop .tableGrid .th{
+  display: block !important;
+}
+
+/* 3) td wieder "tabellig" wirken lassen */
+.shareDesktop .tableGrid .td{
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+
+/* Mobile-Cards in Tabellen im Share-Bild deaktivieren 
+.shareDesktop .tableGrid .rowCard{
+  display: none !important;
+}
+*/
 /* Falls irgendwo Media-Query Sachen das Header-Layout umbauen:
-   im Share-Bild nicht umbrechen */
+   im Share-Bild nicht umbrechen 
 .shareDesktop .monthbar{
   display: grid !important;
-}
+}*/
+
 /* =========================================
    📱 Mobile: Hormonkurve kompakter
    ========================================= */
