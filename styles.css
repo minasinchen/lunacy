@@ -856,7 +856,7 @@ input, button {
 }
 
 
-@media (max-width: 520px){
+@media (max-width: 720px){
   /* Today: Zyklus-Dates dürfen auf Mobile nicht absolut "rausragen" */
   .cycleProgressDates{
     position: static;
@@ -879,6 +879,8 @@ input, button {
   .cpDate.ov{
     grid-area: ov;
     text-align: center;
+    justify-self: center;
+    width: 100%;
     transform: none !important;
     left: auto !important;
   }
@@ -887,7 +889,7 @@ input, button {
 }
 
 /* Heute: Zyklus-Info Kacheln – wenn es zu schmal wird, nur 1 Spalte statt gequetscht */
-@media (max-width: 560px){
+@media (max-width: 640px){
   .phaseMini{ grid-template-columns: 1fr; }
 }
 
