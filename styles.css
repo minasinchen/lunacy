@@ -873,9 +873,22 @@ input, button {
     max-width: none;
     transform: none;
   }
-  .cpDate.ov{ grid-area: ov; text-align: center; }
+  /* Wichtig: Desktop nutzt .cpDate.ov { transform: translateX(-50%); } und JS setzt inline "left".
+     Auf Mobile wollen wir NICHT unter dem Stern positionieren, sondern sauber im Grid.
+     -> daher ov explizit zurücksetzen (höhere Spezifität + !important gegen inline/desktop). */
+  .cpDate.ov{
+    grid-area: ov;
+    text-align: center;
+    transform: none !important;
+    left: auto !important;
+  }
   .cpDate.left{ grid-area: left; text-align: left; }
   .cpDate.right{ grid-area: right; text-align: right; }
+}
+
+/* Heute: Zyklus-Info Kacheln – wenn es zu schmal wird, nur 1 Spalte statt gequetscht */
+@media (max-width: 560px){
+  .phaseMini{ grid-template-columns: 1fr; }
 }
 
 
