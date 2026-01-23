@@ -167,88 +167,16 @@ body::after{
   z-index: 1;
 }
 
-/* =========================
-   Mobile Tabs (Icons + Mini-Labels)
-   ========================= */
-.navDesktop{ display:flex; }
-.tabBtn{
-  display:inline-flex;
-  align-items:center;
-  gap:10px;
-}
-.tabIcon{
-  width:18px;
-  height:18px;
-  opacity:0.92;
-  filter: drop-shadow(0 2px 10px rgba(0,0,0,0.35));
-}
-
-.navMobile{
-  display:none; /* only on mobile */
-  grid-template-columns: repeat(5, 1fr);
-  gap:6px;
-  padding: 6px 4px 8px;
-  border-top: 1px solid rgba(255,255,255,0.08);
-}
-
-.mTab{
-  appearance:none;
-  border: 1px solid transparent;
-  background: transparent;
-  color: var(--muted);
-  border-radius: 14px;
-  padding: 8px 6px;
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  justify-content:center;
-  gap:6px;
-  min-height: 52px;
-  cursor:pointer;
-}
-.mTab img{
-  width: 22px;
-  height: 22px;
-  opacity: 0.92;
-  filter: drop-shadow(0 2px 14px rgba(0,0,0,0.45));
-}
-.mTab span{
-  font-size: 10px;
-  line-height: 1;
-  letter-spacing: 0.2px;
-}
-
-.mTab.active{
-  color: var(--text);
-  background: rgba(245,211,106,0.10);
-  border-color: rgba(245,211,106,0.22);
-}
-.mTab.active img{ opacity: 1; }
-
-.container,
-.footer,
-.modal{
-  position: relative;
-  z-index: 1;
-}
-
 .topbar{
-  display:flex;
-  flex-direction:column;
-  align-items:stretch;
-  gap:8px;
-  padding:12px 14px 10px;
-  border-bottom:1px solid var(--line);
-  background: rgba(12,10,22,0.72);
-  backdrop-filter: blur(10px);
-  position: sticky; top:0; z-index:10;
-}
-
-.topbarRow{
   display:flex;
   align-items:center;
   justify-content:space-between;
   gap:12px;
+  padding:14px 16px;
+  border-bottom:1px solid var(--line);
+  background: rgba(12,10,22,0.72);
+  backdrop-filter: blur(10px);
+  position: sticky; top:0; z-index:10;
 }
 
 .brand{ display:flex; align-items:center; gap:10px; min-width: 180px; }
@@ -293,12 +221,6 @@ body::after{
 
 /* Mobile: keep header compact so the logo never "covers" content */
 @media (max-width: 560px){
-
-  /* Keep "Heute" action visible above the fold */
-  #view-today > h2{ display:none; }
-  .introMuted{ display:none; }
-  .container{ margin: 10px auto; padding: 0 12px 26px; }
-  .card{ padding: 12px; border-radius: 16px; }
   .logoWordmark{
     max-width: 140px;
   }
@@ -306,19 +228,24 @@ body::after{
 @media (max-width: 560px){
   body{ font-size: 19px; }
   .topbar{
-    padding: 8px 10px 6px;
-    gap: 6px;
+    padding: 10px 12px;
+    gap: 10px;
   }
   .logoImg{ width:28px; height:28px; border-radius: 10px; }
   .brand{ min-width: 0; }
   .brandText .title{ font-size: 19px; }
   .brandText .subtitle{ display:none; }
 
-    /* Desktop tabs hidden on mobile; show icon tabs row */
-  .navDesktop{ display:none; }
-  .navMobile{ display:grid; }
-
-  .btn{ padding: 12px 16px; border-radius: 14px; }
+  /* Navigation becomes a horizontal scroll row instead of wrapping into multiple lines */
+  .nav{
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    gap: 8px;
+    padding-bottom: 2px;
+  }
+  .nav::-webkit-scrollbar{ height: 6px; }
+  .btn{ padding: 13px 16px; border-radius: 14px; }
 
   /* Stars: slightly reduced density on small screens */
   body::before{ opacity: 0.70; background-size: 210px 210px; }
@@ -1162,4 +1089,48 @@ input, button {
   color: var(--accent);
   text-shadow: 0 2px 8px rgba(0,0,0,0.6);
   pointer-events: none;
+}
+
+
+
+/* =====================================================
+   MOBILE NAVIGATION – SAFE, SCOPED, SIDE-EFFECT FREE
+   ===================================================== */
+
+.navDesktop{ display:flex; }
+.navMobile{ display:none; }
+
+@media (max-width: 560px){
+
+  .navDesktop{ display:none !important; }
+  .navMobile{ display:grid !important; }
+
+  .topbar{
+    padding:8px 10px 6px;
+    gap:6px;
+  }
+
+  .logoImg{
+    width:28px;
+    height:28px;
+    border-radius:10px;
+  }
+
+  .brandRight{
+    height:28px;
+    justify-content:center;
+  }
+
+  .logoWordmark{
+    height:18px;
+    max-width:140px;
+  }
+
+  .brandSubtitle{
+    font-size:9px;
+    line-height:1.1;
+  }
+
+  #view-today > h2{ display:none; }
+  #view-today .introMuted{ display:none; }
 }

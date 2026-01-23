@@ -8,48 +8,20 @@
 </head>
 <body>
   <header class="topbar">
-    <!-- Row 1: Branding (Logo + Wordmark) -->
-    <div class="topbarRow brandRow" aria-label="Lunacy">
-      <div class="brand">
-        <img src="logo.png" class="logoImg" alt="Lunacy Logo" />
-        <div class="brandRight">
-          <img src="lunacy-wordmark.png" class="logoWordmark" alt="Lunacy" />
-          <div class="brandSubtitle">Periodentracker • lokal auf deinem Gerät</div>
-        </div>
-      </div>
-
-      <!-- Desktop navigation (Text-Tabs + optional icon) -->
-      <nav class="nav navDesktop" aria-label="Navigation">
-        <button class="btn tabBtn" data-view="today"><img class="tabIcon" src="Home.png" alt="" aria-hidden="true" />Heute</button>
-        <button class="btn tabBtn" data-view="calendar"><img class="tabIcon" src="Kalender.png" alt="" aria-hidden="true" />Kalender</button>
-        <button class="btn tabBtn" data-view="hormones"><img class="tabIcon" src="Kurve.png" alt="" aria-hidden="true" />Hormonkurve</button>
-        <button class="btn tabBtn" data-view="stats"><img class="tabIcon" src="Stats.png" alt="" aria-hidden="true" />Statistiken</button>
-        <button class="btn tabBtn" data-view="settings"><img class="tabIcon" src="Einst.png" alt="" aria-hidden="true" />Einstellungen</button>
-      </nav>
+    <div class="brand" aria-label="Lunacy">
+      <img src="logo.png" class="logoImg" alt="Lunacy Logo" />
+      <div class="brandRight">
+    <img src="lunacy-wordmark.png" class="logoWordmark" />
+    <div class="brandSubtitle">Periodentracker • lokal auf deinem Gerät</div>
+  </div>
     </div>
 
-    <!-- Row 2: Mobile navigation (Icons + tiny labels) -->
-    <nav class="navMobile" aria-label="Navigation (mobil)">
-      <button class="mTab" type="button" data-view="today" aria-label="Heute">
-        <img src="Home.png" alt="" aria-hidden="true" />
-        <span>Heute</span>
-      </button>
-      <button class="mTab" type="button" data-view="calendar" aria-label="Kalender">
-        <img src="Kalender.png" alt="" aria-hidden="true" />
-        <span>Kal.</span>
-      </button>
-      <button class="mTab" type="button" data-view="hormones" aria-label="Hormonkurve">
-        <img src="Kurve.png" alt="" aria-hidden="true" />
-        <span>Kurve</span>
-      </button>
-      <button class="mTab" type="button" data-view="stats" aria-label="Statistiken">
-        <img src="Stats.png" alt="" aria-hidden="true" />
-        <span>Stats</span>
-      </button>
-      <button class="mTab" type="button" data-view="settings" aria-label="Einstellungen">
-        <img src="Einst.png" alt="" aria-hidden="true" />
-        <span>Einst.</span>
-      </button>
+    <nav class="nav" aria-label="Navigation">
+      <button class="btn" data-view="today">Heute</button>
+      <button class="btn" data-view="calendar">Kalender</button>
+      <button class="btn" data-view="hormones">Hormonkurve</button>
+      <button class="btn" data-view="stats">Statistiken</button>
+      <button class="btn" data-view="settings">Einstellungen</button>
     </nav>
   </header>
 
@@ -57,7 +29,16 @@
     <!-- TODAY / QUICK LOG -->
     <section class="card view" id="view-today">
       <h2>Heute</h2>
-      <p class="muted introMuted">Schnell-Logging: „Heute Blutung“ und Notizen. Du kannst auch rückwirkend eintragen – oder direkt einen Zeitraum setzen.</p>
+      <p class="muted">Schnell-Logging: „Heute Blutung“ und Notizen. Du kannst auch rückwirkend eintragen – oder direkt einen Zeitraum setzen.</p>
+
+      <!-- Zyklus-Timeline (Sternschnuppe) -->
+      <div class="card inner cycleProgressCard hidden" id="cycleProgressCard" aria-live="polite">
+        <div class="cycleProgressTop">
+          <div style="flex:1;min-width:0;">
+            <div class="muted" id="cycleProgressKicker">Zyklus</div>
+            <div class="strong" id="cycleProgressHeadline">–</div>
+            <div class="muted" style="font-size:12px;margin-top:4px;" id="cycleProgressSub">–</div>
+          </div>
           <div class="cycleProgressBadge" id="cycleProgressBadge">ZT –</div>
         </div>
 
@@ -111,17 +92,6 @@
             Tipp: Wenn du z. B. am 18. und 21. einträgst, werden fehlende Tage dazwischen automatisch ergänzt.
           </div>
         </div>
-      
-
-      <!-- Zyklus-Timeline (Sternschnuppe) -->
-      <div class="card inner cycleProgressCard hidden" id="cycleProgressCard" aria-live="polite">
-        <div class="cycleProgressTop">
-          <div style="flex:1;min-width:0;">
-            <div class="muted" id="cycleProgressKicker">Zyklus</div>
-            <div class="strong" id="cycleProgressHeadline">–</div>
-            <div class="muted" style="font-size:12px;margin-top:4px;" id="cycleProgressSub">–</div>
-          </div>
-
       </div>
 
       <div class="split" style="margin-top:12px;">
