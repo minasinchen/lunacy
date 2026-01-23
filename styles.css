@@ -1293,3 +1293,20 @@ input, button {
 .shareDesktop .monthbar{
   display: grid !important;
 }
+/* =========================================
+   📱 Mobile: Hormonkurve kompakter
+   ========================================= */
+@media (hover: none) and (pointer: coarse) and (max-width: 760px){
+
+  .chartWrap{
+    padding: 8px;
+  }
+
+  .chartWrap canvas{
+    width: 100%;
+    height: auto;
+    max-height: 260px;          /* ⬅️ DAS ist der Schlüssel */
+    aspect-ratio: 16 / 9;       /* flacher als Desktop */
+  }
+
+}
