@@ -667,7 +667,6 @@ input:focus, select:focus, textarea:focus{ border-color: rgba(201,166,255,0.60);
 /* --- Phase mini overview (Heute) --- */
 .phaseMini{
   display:grid;
-  /* minmax(0,1fr) prevents grid items from overflowing their column */
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap:10px;
 }
@@ -676,6 +675,9 @@ input:focus, select:focus, textarea:focus{ border-color: rgba(201,166,255,0.60);
 }
 
 .phaseTile{
+  min-width: 0;
+  overflow-wrap: anywhere;
+
   text-align:left;
   border: 1px solid rgba(255,255,255,0.10);
   border-radius: 16px;
@@ -685,7 +687,6 @@ input:focus, select:focus, textarea:focus{ border-color: rgba(201,166,255,0.60);
   display:flex;
   gap:10px;
   align-items:flex-start;
-  min-width: 0;
 }
 .phaseTile:hover{ border-color: rgba(255,255,255,0.18); }
 .phaseIcon{
@@ -703,7 +704,7 @@ input:focus, select:focus, textarea:focus{ border-color: rgba(201,166,255,0.60);
 }
 .phaseTileMain{ flex: 1; min-width: 0; }
 .phaseTileTop{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
-.phaseTileLabel{ font-weight: 950; min-width: 0; overflow-wrap: anywhere; }
+.phaseTileLabel{ font-weight: 950; }
 .phaseTileHint{ color: var(--muted); margin-top: 4px; font-size: 12px; line-height: 1.25; }
 /* --- Today: ultra-klar (Makros + Mini-Lines) --- */
 .miniLines{ margin:6px 0 0 0; padding-left: 16px; color: var(--muted); font-size: 12px; line-height: 1.25; }
@@ -854,39 +855,29 @@ input, button {
   max-width: 52%;
 }
 
-/*
-  Mobile fix: The date labels under the cycle progress bar are positioned
-  absolutely (left / centered-under-ovulation / right). On very narrow screens
-  this can overlap or get clipped. Switch to a simple grid layout so everything
-  always fits.
-*/
+
 @media (max-width: 520px){
+  /* Today: Zyklus-Dates dürfen auf Mobile nicht absolut "rausragen" */
   .cycleProgressDates{
     position: static;
     min-height: 0;
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 8px 10px;
+    grid-template-areas:
+      "ov ov"
+      "left right";
+    gap: 8px 12px;
   }
-
   .cpDate{
     position: static;
-    top: auto;
-    left: auto;
-    right: auto;
-    transform: none;
     max-width: none;
+    transform: none;
   }
-
-  /* Eisprung-Zeile über volle Breite, damit es nicht gequetscht wird */
-  .cpDate.ov{
-    grid-column: 1 / -1;
-    text-align: center;
-  }
-
-  .cpDate.left{ text-align: left; }
-  .cpDate.right{ text-align: right; }
+  .cpDate.ov{ grid-area: ov; text-align: center; }
+  .cpDate.left{ grid-area: left; text-align: left; }
+  .cpDate.right{ grid-area: right; text-align: right; }
 }
+
 
 @media (hover: none) and (pointer: coarse) and (max-width: 760px){
   .cycleProgressTrack{ height: 30px; }
