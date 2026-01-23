@@ -1250,3 +1250,19 @@ input, button {
   #view-today .introMuted{ display:none; }
 }
 
+/* === Mobile header fix: stack branding + icons === */
+@media (max-width: 760px) {
+  .topbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .topbarRow {
+    width: 100%;
+  }
+
+  .navMobile {
+    width: 100%;
+    justify-content: space-around;
+  }
+}
