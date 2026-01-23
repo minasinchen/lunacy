@@ -160,15 +160,6 @@ body::after{
 
 /* Ensure app content sits above star layers */
 .topbar,
-
-/* Switch nav to icon-tabs on mobile / tablets */
-@media (max-width: 820px), (pointer: coarse) and (max-width: 1024px){
-  .navDesktop{ display:none !important; }
-  .navMobile{ display:grid !important; }
-  .brandSubtitle{ display:none !important; }
-  .topbarRow{ justify-content:flex-start; }
-}
-
 .container,
 .footer,
 .modal{
