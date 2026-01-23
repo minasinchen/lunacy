@@ -336,6 +336,11 @@ function setView(name){
   const active = document.querySelector(`.nav .btn[data-view='${name}']`);
   if (active) active.classList.add("primary");
 
+  // mobile icon nav (if present)
+  document.querySelectorAll(".iconNav .iconTab").forEach(b=>b.classList.remove("primary"));
+  const activeIcon = document.querySelector(`.iconNav .iconTab[data-view='${name}']`);
+  if (activeIcon) activeIcon.classList.add("primary");
+
   if (name==="calendar") rerenderCalendar();
   if (name==="hormones") rerenderHormones();
   if (name==="stats") rerenderStats();
@@ -1632,6 +1637,12 @@ function init(){
 
   // nav
   document.querySelectorAll(".nav .btn").forEach(btn=>{
+    btn.addEventListener("click", ()=>setView(btn.getAttribute("data-view")));
+  });
+
+
+  // mobile icon nav (same data-view)
+  document.querySelectorAll(".iconNav .iconTab").forEach(btn=>{
     btn.addEventListener("click", ()=>setView(btn.getAttribute("data-view")));
   });
 
