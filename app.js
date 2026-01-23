@@ -332,9 +332,15 @@ function setView(name){
   document.querySelectorAll(".view").forEach(v=>v.classList.add("hidden"));
   document.getElementById(`view-${name}`).classList.remove("hidden");
 
-  document.querySelectorAll(".nav .btn").forEach(b=>b.classList.remove("primary"));
-  const active = document.querySelector(`.nav .btn[data-view='${name}']`);
-  if (active) active.classList.add("primary");
+  // Active state (desktop + mobile)
+document.querySelectorAll(".tabBtn").forEach(b=>b.classList.remove("primary"));
+const activeDesktop = document.querySelector(`.tabBtn[data-view='${name}']`);
+if (activeDesktop) activeDesktop.classList.add("primary");
+
+document.querySelectorAll(".mTab").forEach(b=>b.classList.remove("active"));
+const activeMobile = document.querySelector(`.mTab[data-view='${name}']`);
+if (activeMobile) activeMobile.classList.add("active");
+
 
   if (name==="calendar") rerenderCalendar();
   if (name==="hormones") rerenderHormones();
@@ -1630,8 +1636,8 @@ function init(){
   const todayISO = iso(new Date());
   document.getElementById("bleedDate").value = todayISO;
 
-  // nav
-  document.querySelectorAll(".nav .btn").forEach(btn=>{
+  // nav (desktop + mobile)
+  document.querySelectorAll(".tabBtn, .mTab").forEach(btn=>{
     btn.addEventListener("click", ()=>setView(btn.getAttribute("data-view")));
   });
 
