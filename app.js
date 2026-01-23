@@ -35,23 +35,6 @@ function isIOSDevice(){
   return /iPad|iPhone|iPod/.test(ua);
 }
 
-
-function isTouchDevice(){
-  try{
-    return (navigator.maxTouchPoints && navigator.maxTouchPoints > 0) ||
-           (window.matchMedia && window.matchMedia("(hover: none) and (pointer: coarse)").matches);
-  }catch(_e){ return false; }
-}
-
-function shouldUseMobileTabs(){
-  const w = Math.min(window.innerWidth || 0, document.documentElement.clientWidth || 0) || 0;
-  return isTouchDevice() && w <= 980;
-}
-
-function applyNavMode(){
-  document.documentElement.classList.toggle("useMobileTabs", shouldUseMobileTabs());
-}
-
 function getLastCsvBackupISO(){
   try{ return String(localStorage.getItem(KEY_LAST_CSV_BACKUP) || ""); }catch{ return ""; }
 }
@@ -349,9 +332,27 @@ function setView(name){
   document.querySelectorAll(".view").forEach(v=>v.classList.add("hidden"));
   document.getElementById(`view-${name}`).classList.remove("hidden");
 
-  document.querySelectorAll(".nav .btn, .navIcons .tab").forEach(b=>b.classList.remove("primary"));
-  const active = document.querySelector(`.nav .btn[data-view='${name}'], .navIcons .tab[data-view='${name}']`);
-  if (active) active.classList.add("primary");
+  // Desktop tabs (text buttons)
+  document.querySelectorAll(".navDesktop .tabBtn").forEach(b=>{
+    b.classList.remove("primary");
+    b.removeAttribute("aria-current");
+  });
+  const activeDesk = document.querySelector(`.navDesktop .tabBtn[data-view='${name}']`);
+  if (activeDesk){
+    activeDesk.classList.add("primary");
+    activeDesk.setAttribute("aria-current","page");
+  }
+
+  // Mobile tabs (icon buttons)
+  document.querySelectorAll(".navMobile .mTab").forEach(b=>{
+    b.classList.remove("active");
+    b.removeAttribute("aria-current");
+  });
+  const activeMob = document.querySelector(`.navMobile .mTab[data-view='${name}']`);
+  if (activeMob){
+    activeMob.classList.add("active");
+    activeMob.setAttribute("aria-current","page");
+  }
 
   if (name==="calendar") rerenderCalendar();
   if (name==="hormones") rerenderHormones();
@@ -1647,12 +1648,12 @@ function init(){
   const todayISO = iso(new Date());
   document.getElementById("bleedDate").value = todayISO;
 
-  // nav
-  document.querySelectorAll(".nav .btn").forEach(btn=>{
-    btn.addEventListener("click", ()=>setView(btn.getAttribute("data-view")));
+  // nav (desktop + mobile)
+  document.querySelectorAll(".navDesktop .tabBtn, .navMobile .mTab").forEach(btn=>{
+    btn.addEventListener("click", ()=> setView(btn.getAttribute("data-view")));
   });
 
-  // today buttons
+// today buttons
   document.getElementById("bleedTodayBtn").addEventListener("click", ()=>{
     const t = iso(new Date());
     const days = loadBleedDays();
