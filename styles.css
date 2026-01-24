@@ -1451,18 +1451,21 @@ input, button {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
-  margin-top: 24px;
-  margin-bottom: 8px;
-  opacity: 0.9;
+  gap: 12px;
+  margin-top: 32px;
+  margin-bottom: 12px;
+  opacity: 0.95;
 }
 
 .footerLogo{
-  width: 42px;
-  height: 42px;
-  border-radius: 14px;
+  width: 56px;
+  height: 56px;
+  border-radius: 18px;
   border: 1px solid rgba(255,255,255,0.18);
   background: rgba(255,255,255,0.06);
+  box-shadow:
+    0 12px 30px rgba(0,0,0,0.35),
+    0 0 0 1px rgba(247,217,120,0.25); /* dezenter Gold-Akzent */
 }
 
 .footerWordmark{
@@ -1471,6 +1474,13 @@ input, button {
   opacity: 0.85;
 }
 @media (max-width: 480px){
-  .footerLogo{ width: 36px; height: 36px; }
-  .footerWordmark{ height: 20px; }
+  .footerLogo{
+    width: 48px;
+    height: 48px;
+    border-radius: 16px;
+  }
+
+  .footerWordmark{
+    height: 24px;
+  }
 }
