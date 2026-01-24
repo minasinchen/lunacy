@@ -16,10 +16,10 @@
       Lunacy – privates Softwareprojekt
     </p>
 
-    <p>
-      <strong>Kontakt:</strong><br>
-      E-Mail: <a href="mailto:lunacy.app@proton.me">lunacy.app@proton.me</a>
-    </p>
+   <p>
+  <strong>Kontakt:</strong><br>
+  <span id="mailSlot">[E-Mail wird geladen]</span>
+</p>
 
     <p>
       <strong>Verantwortlich für den Inhalt nach § 55 Abs. 2 RStV:</strong><br>
@@ -36,5 +36,24 @@
       Die Anwendung stellt keine medizinische Beratung dar.
     </p>
   </main>
+
+<button class="btn" id="mailBtn" type="button">E-Mail schreiben</button>
+<span id="mailSlot" class="hidden"></span>
+
+<script>
+  (function(){
+    const user = "lunacy.app";
+    const domain = "proton.me";
+    const addr = user + "@" + domain;
+
+    const btn = document.getElementById("mailBtn");
+    if(!btn) return;
+
+    btn.addEventListener("click", () => {
+      location.href = "mailto:" + addr;
+    });
+  })();
+</script>
+  
 </body>
 </html>
