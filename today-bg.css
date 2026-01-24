@@ -1,31 +1,37 @@
 
-/* today-bg.css
-   Zyklus-Panorama als Hintergrund der Heute-Zyklus-Card
-   Optimiert für bessere Sichtbarkeit (weniger Abdunklung)
+/* today-bg.css (FINAL)
+   Zyklus-Panoramen als Hintergrund in der Heute-Zyklus-Card (cycleProgressCard)
+   - Mobile-first
+   - Weiches Ausfaden zu den Rändern (responsive)
+   - 4 Phasen-Bilder via data-phase:
+       rueckzug | erwachen | bluete | einkehr
+   Erwartete Pfade:
+     assets/bg/bg-cycle-rueckzug.jpg
+     assets/bg/bg-cycle-erwachen.jpg
+     assets/bg/bg-cycle-bluete.jpg
+     assets/bg/bg-cycle-einkehr.jpg
 */
 
 .cycleProgressCard.has-bg{
   position: relative;
   overflow: hidden;
 
+  /* Lass das Panorama durchscheinen (ohne Lesbarkeit zu verlieren) */
+  background-color: rgba(24,16,52,0.55);
+
+  /* Default (fallback) */
   background-image:
-    /* sanfte Abdunklung nur nach unten (Textbereich) */
-    linear-gradient(
-      180deg,
-      rgba(7,5,26,0.10) 0%,
-      rgba(7,5,26,0.35) 45%,
-      rgba(7,5,26,0.85) 100%
-    ),
-    /* leichter kosmischer Glow */
     radial-gradient(
-      120% 80% at 50% 0%,
-      rgba(202,169,255,0.22),
-      transparent 60%
+      120% 70% at 50% 10%,
+      rgba(255,255,255,0.10),
+      rgba(7,5,26,0.25) 45%,
+      rgba(7,5,26,0.85) 100%
     ),
     url("assets/bg/bg-cycle-einkehr.jpg");
 
   background-size: cover;
   background-position: center;
+  background-repeat: no-repeat;
 }
 
 /* Seiten-Fade (links/rechts), Mitte bleibt klar */
@@ -34,14 +40,13 @@
   position:absolute;
   inset:0;
   pointer-events:none;
-
   background:
     linear-gradient(
       90deg,
-      rgba(7,5,26,0.65) 0%,
-      rgba(7,5,26,0.0) 22%,
-      rgba(7,5,26,0.0) 78%,
-      rgba(7,5,26,0.65) 100%
+      rgba(7,5,26,0.45) 0%,
+      rgba(7,5,26,0.0) 30%,
+      rgba(7,5,26,0.0) 70%,
+      rgba(7,5,26,0.45) 100%
     );
 }
 
@@ -50,3 +55,55 @@
   position: relative;
   z-index: 1;
 }
+
+/* -------------------------
+   Phase -> Background image
+   ------------------------- */
+
+.cycleProgressCard.has-bg[data-phase="rueckzug"]{
+  background-image:
+    radial-gradient(
+      120% 70% at 50% 10%,
+      rgba(255,255,255,0.10),
+      rgba(7,5,26,0.25) 45%,
+      rgba(7,5,26,0.85) 100%
+    ),
+    url("assets/bg/bg-cycle-rueckzug.jpg");
+}
+
+.cycleProgressCard.has-bg[data-phase="erwachen"]{
+  background-image:
+    radial-gradient(
+      120% 70% at 50% 10%,
+      rgba(255,255,255,0.10),
+      rgba(7,5,26,0.25) 45%,
+      rgba(7,5,26,0.85) 100%
+    ),
+    url("assets/bg/bg-cycle-erwachen.jpg");
+}
+
+.cycleProgressCard.has-bg[data-phase="bluete"]{
+  background-image:
+    radial-gradient(
+      120% 70% at 50% 10%,
+      rgba(255,255,255,0.10),
+      rgba(7,5,26,0.25) 45%,
+      rgba(7,5,26,0.85) 100%
+    ),
+    url("assets/bg/bg-cycle-bluete.jpg");
+}
+
+.cycleProgressCard.has-bg[data-phase="einkehr"]{
+  background-image:
+    radial-gradient(
+      120% 70% at 50% 10%,
+      rgba(255,255,255,0.10),
+      rgba(7,5,26,0.25) 45%,
+      rgba(7,5,26,0.85) 100%
+    ),
+    url("assets/bg/bg-cycle-einkehr.jpg");
+}
+
+/* Optional: wenn du später die Intensität noch minimal erhöhen willst,
+   senke unten in der radial-gradient den Wert 0.85 -> 0.80 (mehr Bild),
+   oder erhöhe rgba(255,255,255,0.10) -> 0.13 (mehr Spotlight). */
