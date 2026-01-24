@@ -813,9 +813,17 @@ function rerenderHormones(){
   const { estrogen, lh, progesterone, bbt } = buildHormoneModel(ctx0.model.cycleLen, ovDay);
 
   // Resize canvas to container while keeping crisp lines
+  // IMPORTANT (mobile Safari): don't derive height from wrap.clientHeight, because the viewport can
+  // change on scroll (address bar), which can cause the canvas to "grow" on every rerender.
+  // We instead derive height from width + a stable aspect ratio and clamp it.
   const wrap = canvas.closest(".chartWrap") || canvas.parentElement;
   const cssW = Math.max(320, Math.floor((wrap?.clientWidth || canvas.width)));
-  const cssH = Math.max(280, Math.floor((wrap?.clientHeight || 420)));
+
+  const isMobile = (window.matchMedia && window.matchMedia("(hover: none) and (pointer: coarse)").matches) || (window.innerWidth <= 760);
+  const maxH = isMobile ? 260 : 420;              // keep in sync with CSS/mobile design
+  const minH = isMobile ? 210 : 280;
+  const cssH = clamp(Math.round(cssW * (9/16)), minH, maxH);
+
   const dpr = Math.min(2, window.devicePixelRatio || 1);
   canvas.style.width = cssW + "px";
   canvas.style.height = cssH + "px";
