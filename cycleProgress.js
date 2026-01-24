@@ -164,6 +164,24 @@
       card.setAttribute("data-state", "next_period");
     }
 
+    // ---- Phase → Background-Mapping (Lunacy) ----
+let phaseBg = "bluete"; // fallback
+
+if (p.inPeriod){
+  phaseBg = "rueckzug";
+} else if (p.nextKey === "ovulation"){
+  // rund um Ovulation = Blüte
+  phaseBg = "bluete";
+} else if (p.today <= p.ovuDate){
+  // vor Ovulation, nicht in Periode = Erwachen
+  phaseBg = "erwachen";
+} else {
+  // nach Ovulation bis nächste Periode = Einkehr
+  phaseBg = "einkehr";
+}
+
+card.setAttribute("data-phase", phaseBg);
+    
     // If track is missing for some reason, hide card to avoid a broken UI.
     if (!track) card.classList.add("hidden");
   }
