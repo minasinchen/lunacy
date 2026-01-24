@@ -1449,23 +1449,20 @@ input, button {
 
 .footerBrand{
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  margin-top: 32px;
-  margin-bottom: 12px;
-  opacity: 0.95;
+  justify-content: center;
+  margin: 48px 0 20px;
 }
 
 .footerLogo{
-  width: 56px;
-  height: 56px;
-  border-radius: 18px;
-  border: 1px solid rgba(255,255,255,0.18);
-  background: rgba(255,255,255,0.06);
+  width: min(26vw, 140px);
+  aspect-ratio: 1 / 1;
+  border-radius: 26%;
+  border: 1px solid rgba(255,255,255,0.22);
+  background: rgba(255,255,255,0.08);
   box-shadow:
-    0 12px 30px rgba(0,0,0,0.35),
-    0 0 0 1px rgba(247,217,120,0.25); /* dezenter Gold-Akzent */
+    0 20px 50px rgba(0,0,0,0.45),
+    0 0 0 1px rgba(247,217,120,0.35);
+  opacity: 0.98;
 }
 
 .footerWordmark{
@@ -1473,14 +1470,8 @@ input, button {
   width: auto;
   opacity: 0.85;
 }
-@media (max-width: 480px){
+@media (max-width: 360px){
   .footerLogo{
-    width: 48px;
-    height: 48px;
-    border-radius: 16px;
-  }
-
-  .footerWordmark{
-    height: 24px;
+    width: min(30vw, 120px);
   }
 }
