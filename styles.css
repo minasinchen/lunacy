@@ -358,14 +358,28 @@ input:focus, select:focus, textarea:focus{ border-color: rgba(201,166,255,0.60);
 .small{ font-size:13px; }
 
 .monthbar{
-  display:grid;
-  grid-template-columns: 44px 1fr auto;
-  align-items:center;
-  gap:10px;
+  display:flex;
+  flex-direction: column; /* mobile-first */
+  gap: 10px;
   margin-bottom: 10px;
 }
 
-/* Mobile: month header becomes two rows (title on top, buttons below) */
+/* Monthbar: Option 3 (‹ Title ›) + Actions */
+.monthTitleRow{
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.monthbarActions{
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+/* Mobile: month header becomes two rows (title on top, buttons below) 
 @media (max-width: 760px){
   .monthbar{
     display:flex;
@@ -377,8 +391,31 @@ input:focus, select:focus, textarea:focus{ border-color: rgba(201,166,255,0.60);
   #monthTitle{ flex: 1 0 100%; order: 1; }
   #prevBtn{ order: 2; }
   .monthbarRight{ flex: 1 0 100%; order: 3; justify-content:space-between; }
-}
+}*/
 
+@media (min-width: 761px){
+  .monthbar{
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .monthTitleRow{
+    flex: 1;
+    max-width: 520px;
+  }
+
+  .monthbarActions{
+    flex: 0 0 auto;
+  }
+}
+@media (max-width: 760px){
+  .monthbarActions{
+    justify-content: space-between; /* Heute links, Teilen rechts */
+  }
+}
 /* Bigger, easier month navigation (thumb-friendly) */
 .monthNavBtn{
   min-width: 52px;
