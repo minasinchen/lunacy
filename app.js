@@ -630,9 +630,10 @@ if (dateISO === todayISO){
       const gTxt = g.grade ? `${g.grade}${g.detail?` (${g.detail})`:""}` : "–";
       return {
         idx,
+        ovuISO: dISO,
         ovu: `${idx===0?"(aktuell) ":""}${formatDateDE(ovuDate)}`,
         et: formatDateDE(et),
-        sign: `${escapeHtml(w.name)}${adj?` <span class="muted" style="font-size:12px;">(${escapeHtml(adj)})</span>`:""}`,
+        sign: `${escapeHtml(w.name)}${adj?` <span class=\"muted\" style=\"font-size:12px;\">(${escapeHtml(adj)})</span>`:""}`,
         chinese: escapeHtml(cz.animal),
         match: gTxt,
         signPlain: w.name,
@@ -640,33 +641,66 @@ if (dateISO === todayISO){
       };
     });
 
+    // Desktop: compact grid table
     const head = `
-      <div class="th">Eisprung</div>
-      <div class="th">ET (≈)</div>
-      <div class="th">Sternzeichen</div>
-      <div class="th">Chinesisch</div>
-      <div class="th">Match (1–6)</div>
+      <div class=\"th\">Eisprung</div>
+      <div class=\"th\">ET (≈)</div>
+      <div class=\"th\">Sternzeichen</div>
+      <div class=\"th\">Chinesisch</div>
+      <div class=\"th\">Match (1–6)</div>
     `;
 
     const desktopCells = pregnancyData.map(r=>`
-      <div class="td">${r.ovu}</div>
-      <div class="td">${r.et}</div>
-      <div class="td">${r.sign}</div>
-      <div class="td">${r.chinese}</div>
-      <div class="td">${r.match}</div>
+      <div class=\"td\">${r.ovu}</div>
+      <div class=\"td\">${r.et}</div>
+      <div class=\"td\">${r.sign}</div>
+      <div class=\"td\">${r.chinese}</div>
+      <div class=\"td\">${r.match}</div>
     `).join("");
 
-    const mobileCards = pregnancyData.map(r=>`
-      <div class="rowCard">
-        <div class="kv"><div class="k">Eisprung</div><div class="v">${r.ovu}</div></div>
-        <div class="kv"><div class="k">ET (≈)</div><div class="v">${r.et}</div></div>
-        <div class="kv"><div class="k">Sternzeichen</div><div class="v">${escapeHtml(r.signPlain)}${r.adjPlain?` <span class="muted" style="font-size:12px;">(${escapeHtml(r.adjPlain)})</span>`:""}</div></div>
-        <div class="kv"><div class="k">Chinesisch</div><div class="v">${r.chinese}</div></div>
-        <div class="kv"><div class="k">Match</div><div class="v">${r.match}</div></div>
-      </div>
-    `).join("");
+    // Mobile: one clear card per next ovulation
+    // - ES gets the same visual cue as in the "Heute" timeline (golden star)
+    // - Cards are future-proof: optional extra sections can be appended without breaking layout.
+    const mobileCards = pregnancyData.map((r)=>{
+      const signLine = `${escapeHtml(r.signPlain)}${r.adjPlain?` <span class=\"muted\" style=\"font-size:12px;\">(${escapeHtml(r.adjPlain)})</span>`:""}`;
+      const matchLabel = r.match && r.match !== "–" ? `Match: ${escapeHtml(r.match)}` : "Match: –";
 
-    return `<div class="tableGrid" style="margin-top:8px;">${head}${desktopCells}${mobileCards}</div>`;
+      // Optional extras for future features (e.g., Chinese description, sub-scores, preferences)
+      // Expected format: r.extra = [{ label:"…", value:"…" }, ...]
+      const extras = Array.isArray(r.extra) ? r.extra.filter(x => x && x.label && (x.value !== undefined && x.value !== null && String(x.value).trim() !== "")) : [];
+      const extrasHtml = extras.length ? `
+        <details class=\"astroDetails\">
+          <summary>Mehr Details</summary>
+          <div class=\"astroDetailsBody\">
+            ${extras.map(x => `
+              <div class=\"astroRow\"><div class=\"k\">${escapeHtml(String(x.label))}</div><div class=\"v\">${escapeHtml(String(x.value))}</div></div>
+            `).join("")}
+          </div>
+        </details>
+      ` : "";
+
+      return `
+        <div class=\"astroCard\">
+          <div class=\"astroCardTop\">
+            <div class=\"astroCardTitle\"><span class=\"ovuStar\" aria-hidden=\"true\">★</span> ES ${r.ovu}</div>
+            <span class=\"astroMatchBadge\" aria-label=\"Match-Wert\">${matchLabel}</span>
+          </div>
+
+          <div class=\"astroCardBody\">
+            <div class=\"astroRow\"><div class=\"k\">ET</div><div class=\"v\">${r.et}</div></div>
+            <div class=\"astroRow\"><div class=\"k\">Sternzeichen</div><div class=\"v\">${signLine}</div></div>
+            <div class=\"astroRow\"><div class=\"k\">Chin. Sternzeichen</div><div class=\"v\">${r.chinese}</div></div>
+          </div>
+
+          ${extrasHtml}
+        </div>
+      `;
+    }).join("");
+
+    const desktop = `<div class=\"tableGrid astroTable\" style=\"margin-top:8px;\">${head}${desktopCells}</div>`;
+    const mobile = `<div class=\"astroCards\" style=\"margin-top:8px;\">${mobileCards}</div>`;
+
+    return desktop + mobile;
   })();
   const ovReason = model.currentOvulation?.reasonText ? ` • ${escapeHtml(model.currentOvulation.reasonText)}` : "";
   summary.innerHTML = `
