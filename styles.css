@@ -1321,6 +1321,7 @@ input, button {
     height: auto;
     max-height: 260px;          /* ⬅️ DAS ist der Schlüssel */
     aspect-ratio: 16 / 9;       /* flacher als Desktop */
+    max-height: 45vh;
   }
 
 }
