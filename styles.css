@@ -1512,3 +1512,19 @@ input, button {
     width: min(30vw, 120px);
   }
 }
+
+
+/* 🔗 Links im Lunacy-Stil (kein Blau) */
+a {
+  color: var(--accent2);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+/* Zurück-Button etwas luftiger */
+.backBtn {
+  margin: 10px 0 16px;
+}
