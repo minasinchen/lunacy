@@ -164,24 +164,35 @@
       card.setAttribute("data-state", "next_period");
     }
 
-    // ---- Phase → Background-Mapping (Lunacy) ----
-let phaseBg = "bluete"; // fallback
+    // ---- Lunacy: Set background phase for today-bg.css ----
+    // data-phase expects: rueckzug | erwachen | bluete | einkehr
+    // Regeln:
+    // - Rückzug: während Periode
+    // - Blüte: 3 Tage vor Eisprung bis 1 Tag nach Eisprung
+    // - Erwachen: zwischen Periode und Blüte
+    // - Einkehr: nach Blüte
+    let phaseBg = "einkehr"; // fallback
+    const ovuWindowBefore = 3; // 3 Tage vor Eisprung
+    const ovuWindowAfter  = 1; // 1 Tag nach Eisprung
 
-if (p.inPeriod){
-  phaseBg = "rueckzug";
-} else if (p.nextKey === "ovulation"){
-  // rund um Ovulation = Blüte
-  phaseBg = "bluete";
-} else if (p.today <= p.ovuDate){
-  // vor Ovulation, nicht in Periode = Erwachen
-  phaseBg = "erwachen";
-} else {
-  // nach Ovulation bis nächste Periode = Einkehr
-  phaseBg = "einkehr";
-}
+    if (p.inPeriod){
+      phaseBg = "rueckzug";
+    } else {
+      const deltaToOvu = safeDiffDays(p.today, p.ovuDate); // >0 vor Ovu, 0 am Ovu-Tag, <0 nach Ovu
+      const inOvuWindow = (deltaToOvu <= ovuWindowBefore && deltaToOvu >= -ovuWindowAfter);
 
-card.setAttribute("data-phase", phaseBg);
-    
+      if (inOvuWindow){
+        phaseBg = "bluete";
+      } else if (p.today < p.ovuDate){
+        phaseBg = "erwachen";
+      } else {
+        phaseBg = "einkehr";
+      }
+    }
+
+    card.setAttribute("data-phase", phaseBg);
+    // ------------------------------------------------------
+
     // If track is missing for some reason, hide card to avoid a broken UI.
     if (!track) card.classList.add("hidden");
   }
