@@ -332,27 +332,15 @@ function setView(name){
   document.querySelectorAll(".view").forEach(v=>v.classList.add("hidden"));
   document.getElementById(`view-${name}`).classList.remove("hidden");
 
-  // Desktop tabs (text buttons)
-  document.querySelectorAll(".navDesktop .tabBtn").forEach(b=>{
-    b.classList.remove("primary");
-    b.removeAttribute("aria-current");
-  });
-  const activeDesk = document.querySelector(`.navDesktop .tabBtn[data-view='${name}']`);
-  if (activeDesk){
-    activeDesk.classList.add("primary");
-    activeDesk.setAttribute("aria-current","page");
-  }
+  // Active state (desktop + mobile)
+document.querySelectorAll(".tabBtn").forEach(b=>b.classList.remove("primary"));
+const activeDesktop = document.querySelector(`.tabBtn[data-view='${name}']`);
+if (activeDesktop) activeDesktop.classList.add("primary");
 
-  // Mobile tabs (icon buttons)
-  document.querySelectorAll(".navMobile .mTab").forEach(b=>{
-    b.classList.remove("active");
-    b.removeAttribute("aria-current");
-  });
-  const activeMob = document.querySelector(`.navMobile .mTab[data-view='${name}']`);
-  if (activeMob){
-    activeMob.classList.add("active");
-    activeMob.setAttribute("aria-current","page");
-  }
+document.querySelectorAll(".mTab").forEach(b=>b.classList.remove("active"));
+const activeMobile = document.querySelector(`.mTab[data-view='${name}']`);
+if (activeMobile) activeMobile.classList.add("active");
+
 
   if (name==="calendar") rerenderCalendar();
   if (name==="hormones") rerenderHormones();
@@ -642,9 +630,10 @@ if (dateISO === todayISO){
       const gTxt = g.grade ? `${g.grade}${g.detail?` (${g.detail})`:""}` : "–";
       return {
         idx,
+        ovuISO: dISO,
         ovu: `${idx===0?"(aktuell) ":""}${formatDateDE(ovuDate)}`,
         et: formatDateDE(et),
-        sign: `${escapeHtml(w.name)}${adj?` <span class="muted" style="font-size:12px;">(${escapeHtml(adj)})</span>`:""}`,
+        sign: `${escapeHtml(w.name)}${adj?` <span class=\"muted\" style=\"font-size:12px;\">(${escapeHtml(adj)})</span>`:""}`,
         chinese: escapeHtml(cz.animal),
         match: gTxt,
         signPlain: w.name,
@@ -652,33 +641,66 @@ if (dateISO === todayISO){
       };
     });
 
+    // Desktop: compact grid table
     const head = `
-      <div class="th">Eisprung</div>
-      <div class="th">ET (≈)</div>
-      <div class="th">Sternzeichen</div>
-      <div class="th">Chinesisch</div>
-      <div class="th">Match (1–6)</div>
+      <div class=\"th\">Eisprung</div>
+      <div class=\"th\">ET (≈)</div>
+      <div class=\"th\">Sternzeichen</div>
+      <div class=\"th\">Chinesisch</div>
+      <div class=\"th\">Match (1–6)</div>
     `;
 
     const desktopCells = pregnancyData.map(r=>`
-      <div class="td">${r.ovu}</div>
-      <div class="td">${r.et}</div>
-      <div class="td">${r.sign}</div>
-      <div class="td">${r.chinese}</div>
-      <div class="td">${r.match}</div>
+      <div class=\"td\">${r.ovu}</div>
+      <div class=\"td\">${r.et}</div>
+      <div class=\"td\">${r.sign}</div>
+      <div class=\"td\">${r.chinese}</div>
+      <div class=\"td\">${r.match}</div>
     `).join("");
 
-    const mobileCards = pregnancyData.map(r=>`
-      <div class="rowCard">
-        <div class="kv"><div class="k">Eisprung</div><div class="v">${r.ovu}</div></div>
-        <div class="kv"><div class="k">ET (≈)</div><div class="v">${r.et}</div></div>
-        <div class="kv"><div class="k">Sternzeichen</div><div class="v">${escapeHtml(r.signPlain)}${r.adjPlain?` <span class="muted" style="font-size:12px;">(${escapeHtml(r.adjPlain)})</span>`:""}</div></div>
-        <div class="kv"><div class="k">Chinesisch</div><div class="v">${r.chinese}</div></div>
-        <div class="kv"><div class="k">Match</div><div class="v">${r.match}</div></div>
-      </div>
-    `).join("");
+    // Mobile: one clear card per next ovulation
+    // - ES gets the same visual cue as in the "Heute" timeline (golden star)
+    // - Cards are future-proof: optional extra sections can be appended without breaking layout.
+    const mobileCards = pregnancyData.map((r)=>{
+      const signLine = `${escapeHtml(r.signPlain)}${r.adjPlain?` <span class=\"muted\" style=\"font-size:12px;\">(${escapeHtml(r.adjPlain)})</span>`:""}`;
+      const matchLabel = r.match && r.match !== "–" ? `Match: ${escapeHtml(r.match)}` : "Match: –";
 
-    return `<div class="tableGrid" style="margin-top:8px;">${head}${desktopCells}${mobileCards}</div>`;
+      // Optional extras for future features (e.g., Chinese description, sub-scores, preferences)
+      // Expected format: r.extra = [{ label:"…", value:"…" }, ...]
+      const extras = Array.isArray(r.extra) ? r.extra.filter(x => x && x.label && (x.value !== undefined && x.value !== null && String(x.value).trim() !== "")) : [];
+      const extrasHtml = extras.length ? `
+        <details class=\"astroDetails\">
+          <summary>Mehr Details</summary>
+          <div class=\"astroDetailsBody\">
+            ${extras.map(x => `
+              <div class=\"astroRow\"><div class=\"k\">${escapeHtml(String(x.label))}</div><div class=\"v\">${escapeHtml(String(x.value))}</div></div>
+            `).join("")}
+          </div>
+        </details>
+      ` : "";
+
+      return `
+        <div class=\"astroCard\">
+          <div class=\"astroCardTop\">
+            <div class=\"astroCardTitle\"><span class=\"ovuStar\" aria-hidden=\"true\">★</span> ES ${r.ovu}</div>
+            <span class=\"astroMatchBadge\" aria-label=\"Match-Wert\">${matchLabel}</span>
+          </div>
+
+          <div class=\"astroCardBody\">
+            <div class=\"astroRow\"><div class=\"k\">ET</div><div class=\"v\">${r.et}</div></div>
+            <div class=\"astroRow\"><div class=\"k\">Sternzeichen</div><div class=\"v\">${signLine}</div></div>
+            <div class=\"astroRow\"><div class=\"k\">Chin. Sternzeichen</div><div class=\"v\">${r.chinese}</div></div>
+          </div>
+
+          ${extrasHtml}
+        </div>
+      `;
+    }).join("");
+
+    const desktop = `<div class=\"tableGrid astroTable\" style=\"margin-top:8px;\">${head}${desktopCells}</div>`;
+    const mobile = `<div class=\"astroCards\" style=\"margin-top:8px;\">${mobileCards}</div>`;
+
+    return desktop + mobile;
   })();
   const ovReason = model.currentOvulation?.reasonText ? ` • ${escapeHtml(model.currentOvulation.reasonText)}` : "";
   summary.innerHTML = `
@@ -791,9 +813,17 @@ function rerenderHormones(){
   const { estrogen, lh, progesterone, bbt } = buildHormoneModel(ctx0.model.cycleLen, ovDay);
 
   // Resize canvas to container while keeping crisp lines
+  // IMPORTANT (mobile Safari): don't derive height from wrap.clientHeight, because the viewport can
+  // change on scroll (address bar), which can cause the canvas to "grow" on every rerender.
+  // We instead derive height from width + a stable aspect ratio and clamp it.
   const wrap = canvas.closest(".chartWrap") || canvas.parentElement;
   const cssW = Math.max(320, Math.floor((wrap?.clientWidth || canvas.width)));
-  const cssH = Math.max(280, Math.floor((wrap?.clientHeight || 420)));
+
+  const isMobile = (window.matchMedia && window.matchMedia("(hover: none) and (pointer: coarse)").matches) || (window.innerWidth <= 760);
+  const maxH = isMobile ? 260 : 420;              // keep in sync with CSS/mobile design
+  const minH = isMobile ? 210 : 280;
+  const cssH = clamp(Math.round(cssW * (9/16)), minH, maxH);
+
   const dpr = Math.min(2, window.devicePixelRatio || 1);
   canvas.style.width = cssW + "px";
   canvas.style.height = cssH + "px";
@@ -934,6 +964,7 @@ async function shareSummaryAsImage(){
      SHARE WRAP (Cosmic Card)
   -------------------------------- */
   const wrap = document.createElement("div");
+  wrap.classList.add("shareDesktop");
   wrap.setAttribute("aria-hidden","true");
   wrap.style.position = "fixed";
   wrap.style.left = "-99999px";
@@ -1649,11 +1680,11 @@ function init(){
   document.getElementById("bleedDate").value = todayISO;
 
   // nav (desktop + mobile)
-  document.querySelectorAll(".navDesktop .tabBtn, .navMobile .mTab").forEach(btn=>{
-    btn.addEventListener("click", ()=> setView(btn.getAttribute("data-view")));
+  document.querySelectorAll(".tabBtn, .mTab").forEach(btn=>{
+    btn.addEventListener("click", ()=>setView(btn.getAttribute("data-view")));
   });
 
-// today buttons
+  // today buttons
   document.getElementById("bleedTodayBtn").addEventListener("click", ()=>{
     const t = iso(new Date());
     const days = loadBleedDays();
