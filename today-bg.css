@@ -107,3 +107,57 @@
 /* Optional: wenn du später die Intensität noch minimal erhöhen willst,
    senke unten in der radial-gradient den Wert 0.85 -> 0.80 (mehr Bild),
    oder erhöhe rgba(255,255,255,0.10) -> 0.13 (mehr Spotlight). */
+
+
+/* ---------------------------------------
+   Goldener Inner-Frame für Zyklus-Card
+   - kaschiert Kanten
+   - fadet nach innen
+   - wirkt ruhig & premium
+---------------------------------------- */
+
+.cycleProgressCard.has-bg{
+  position: relative; /* absichern */
+}
+
+/* Goldener Lichtsaum */
+.cycleProgressCard.has-bg::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  border-radius: inherit;
+  z-index: 2;
+
+  background:
+    /* oben */
+    linear-gradient(
+      180deg,
+      rgba(247,217,120,0.35),
+      rgba(247,217,120,0.0) 45%
+    ),
+    /* unten */
+    linear-gradient(
+      0deg,
+      rgba(247,217,120,0.25),
+      rgba(247,217,120,0.0) 45%
+    ),
+    /* links */
+    linear-gradient(
+      90deg,
+      rgba(247,217,120,0.25),
+      rgba(247,217,120,0.0) 45%
+    ),
+    /* rechts */
+    linear-gradient(
+      270deg,
+      rgba(247,217,120,0.25),
+      rgba(247,217,120,0.0) 45%
+    );
+}
+
+/* Inhalt über Rahmen */
+.cycleProgressCard.has-bg > *{
+  position: relative;
+  z-index: 3;
+}
