@@ -1446,3 +1446,31 @@ input, button {
   }
 
 }
+
+.footerBrand{
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-top: 24px;
+  margin-bottom: 8px;
+  opacity: 0.9;
+}
+
+.footerLogo{
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.18);
+  background: rgba(255,255,255,0.06);
+}
+
+.footerWordmark{
+  height: 22px;
+  width: auto;
+  opacity: 0.85;
+}
+@media (max-width: 480px){
+  .footerLogo{ width: 36px; height: 36px; }
+  .footerWordmark{ height: 20px; }
+}
