@@ -443,7 +443,7 @@
   </main>
 
 <div class="footerBrand">
-  <img src="logo.png" alt="Lunacy Logo" class="footerLogo" id="footerLogo" role="button" tabindex="0" aria-label="Lunacy">
+  <img src="logo.png" alt="Lunacy Logo" class="footerLogo">
 </div>
 	
   <footer class="footer">
@@ -529,7 +529,6 @@
   <script src="astro.js"></script>
   <script src="backup.js"></script>
   <script src="app.js"></script>
-  <script src="tarot.js"></script>
   <script src="stats_charts.js"></script>
   <script src="icsExport.js"></script>
   <script src="mittelschmerz_stats.js"></script>

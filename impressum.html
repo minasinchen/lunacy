@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <title>Impressum – Lunacy</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="container card">
+    <h2>Impressum</h2>
+<button class="btn backBtn" onclick="history.back()">← Zurück</button>
+    <p><strong>Projekt:</strong> Lunacy</p>
+
+    <p>
+      <strong>Betreiber:</strong><br>
+      Lunacy – privates Softwareprojekt
+    </p>
+
+   <p>
+  <strong>Kontakt:</strong><br>
+  <span id="mailSlot">[E-Mail wird geladen]</span>
+</p>
+
+    <p>
+      <strong>Verantwortlich für den Inhalt nach § 55 Abs. 2 RStV:</strong><br>
+      Betreiber des Projekts Lunacy
+    </p>
+
+    <hr>
+
+    <p class="muted">
+      Dieses Projekt wird als nicht-kommerzielles Hobbyprojekt betrieben.
+    </p>
+
+    <p class="muted">
+      Die Anwendung stellt keine medizinische Beratung dar.
+    </p>
+  </main>
+
+<button class="btn" id="mailBtn" type="button">E-Mail schreiben</button>
+<span id="mailSlot" class="hidden"></span>
+
+<script>
+  (function(){
+    const user = "winter.maedchen";
+    const domain = "web.de";
+    const addr = user + "@" + domain;
+
+    const btn = document.getElementById("mailBtn");
+    if(!btn) return;
+
+    btn.addEventListener("click", () => {
+      location.href = "mailto:" + addr;
+    });
+  })();
+</script>
+  
+</body>
+</html>

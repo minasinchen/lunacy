@@ -16,6 +16,11 @@
     const view = document.getElementById("view-stats");
     if (!view) return null;
 
+    // ✅ benutze den festen Platzhalter aus der HTML
+  const slot = document.getElementById("statsMittelschmerz");
+  if (slot) return slot;
+
+  // Fallback: falls der Slot fehlt, hänge ans Ende
     let box = document.getElementById("mittelschmerzStats");
     if (box) return box;
 
@@ -23,16 +28,11 @@
     box.id = "mittelschmerzStats";
     box.style.marginTop = "14px";
 
-    // Insert after the last12 table if possible
-    const last12 = document.getElementById("last12");
-    if (last12 && last12.parentElement){
-      last12.insertAdjacentElement("afterend", box);
-    } else {
-      view.appendChild(box);
-    }
+    view.appendChild(box);
+  return box;
+}
 
-    return box;
-  }
+  
 
   function findMittelschmerzInWindow(notesByDate, start, end, between, parseISO){
     const keys = Object.keys(notesByDate || {}).sort();
@@ -165,44 +165,113 @@
     const items = compute(payload);
     const s = summarize(items);
 
-    // If no MS at all, show a compact hint and bail.
+    const c = s.counts;
+    const prox = s.proximity;
+    const proxTotal = s.withMSCount || 0;
+
+    const domText = (()=>{
+      if (!s.dominant) return "–";
+      if (s.dominant === "gleich") return "gleich oft";
+      if (s.dominant === "links") return "eher links";
+      if (s.dominant === "rechts") return "eher rechts";
+      return "–";
+    })();
+
+    // No entries at all -> keep it short and reassuring
     if (s.withMSCount === 0){
       box.innerHTML = `
-        <h3 style="margin-top:14px;">Mittelschmerz-Statistik</h3>
-        <p class="muted" style="margin-top:6px;">Noch keine Mittelschmerz-Notizen in deinen letzten Zyklen. Trage im Kalender bei einem Tag eine Notiz vom Typ „Mittelschmerz“ ein (optional mit Seite/Intensität).</p>
+        <div class="msHero">
+          <div class="msHeroTop">
+            <div>
+              <div class="msTitle">Mittelschmerz – dein Muster</div>
+              <div class="msSub muted">Letzte ${s.totalCycles} Zyklen • mit Eintrag: 0 (0%)</div>
+            </div>
+            <span class="msBadge">statistisch</span>
+          </div>
+
+          <div class="msKpis">
+            <div class="msKpi">
+              <div class="k">Kommt vor</div>
+              <div class="v">0%</div>
+              <div class="m muted">bisher kein Mittelschmerz eingetragen</div>
+            </div>
+
+            <div class="msKpi">
+              <div class="k">Tipp</div>
+              <div class="v">optional</div>
+              <div class="m muted">wenn du’s trackst, erkennt Lunacy ein Muster</div>
+            </div>
+
+            <div class="msKpi">
+              <div class="k">Hinweis</div>
+              <div class="v">sanft</div>
+              <div class="m muted">Auswertung ist rein statistisch</div>
+            </div>
+          </div>
+        </div>
       `;
       return;
     }
 
-    const c = s.counts;
-    const domText = (s.dominant === null) ? "–" : (s.dominant === "gleich" ? "links & rechts gleich oft" : `eher ${s.dominant}`);
-
-    const prox = s.proximity;
-    const proxTotal = prox.onDay + prox.plusminus1 + prox.farther;
-
+    // Normal case (there are entries)
     box.innerHTML = `
-      <h3 style="margin-top:14px;">Mittelschmerz-Statistik</h3>
-      <div class="grid2" style="margin-top:10px;">
-        <div class="card inner"><div class="muted">Zyklen betrachtet</div><div class="big">${s.totalCycles}</div></div>
-        <div class="card inner"><div class="muted">Zyklen mit Mittelschmerz</div><div class="big">${s.withMSCount}</div></div>
-
-        <div class="card inner"><div class="muted">Seite: rechts</div><div class="big">${c.rechts} <span class="muted" style="font-size:12px;">(${pct(c.rechts, s.withMSCount)}%)</span></div></div>
-        <div class="card inner"><div class="muted">Seite: links</div><div class="big">${c.links} <span class="muted" style="font-size:12px;">(${pct(c.links, s.withMSCount)}%)</span></div></div>
-
-        <div class="card inner"><div class="muted">Beidseitig</div><div class="big">${c.beidseitig}</div></div>
-        <div class="card inner"><div class="muted">Dominanz</div><div class="big">${payload.escapeHtml(domText)}</div></div>
-
-        <div class="card inner"><div class="muted">Muster (L/R)</div><div class="big">${payload.escapeHtml(s.patternLabel)}</div></div>
-        <div class="card inner"><div class="muted">Nähe zum Eisprung</div><div class="big">${pct(prox.onDay + prox.plusminus1, proxTotal)}% <span class="muted" style="font-size:12px;">(am Tag / ±1)</span></div></div>
-
-        <div class="card inner" style="grid-column:1/-1;">
-          <div class="muted">Aufschlüsselung Nähe zum Eisprung (nur Zyklen mit Mittelschmerz)</div>
-          <div class="badges" style="margin-top:8px;">
-            <span class="badge">am Eisprung: ${prox.onDay}</span>
-            <span class="badge">±1 Tag: ${prox.plusminus1}</span>
-            <span class="badge">weiter weg: ${prox.farther}</span>
+      <div class="msHero">
+        <div class="msHeroTop">
+          <div>
+            <div class="msTitle">Mittelschmerz – dein Muster</div>
+            <div class="msSub muted">Letzte ${s.totalCycles} Zyklen • mit Eintrag: ${s.withMSCount} (${pct(s.withMSCount, s.totalCycles)}%)</div>
           </div>
-          <div class="muted" style="margin-top:8px;font-size:12px;">Hinweis: Eisprung ist in Lunacy eine Näherung (LH+ hat Priorität). Diese Auswertung ist rein statistisch.</div>
+          <span class="msBadge">statistisch</span>
+        </div>
+
+        <div class="msKpis">
+          <div class="msKpi">
+            <div class="k">Kommt vor</div>
+            <div class="v">${pct(s.withMSCount, s.totalCycles)}%</div>
+            <div class="m muted">Anteil Zyklen mit Mittelschmerz</div>
+          </div>
+
+          <div class="msKpi">
+            <div class="k">Meistens</div>
+            <div class="v">${payload.escapeHtml ? payload.escapeHtml(domText) : domText}</div>
+            <div class="m muted">dominante Seite (L/R)</div>
+          </div>
+
+          <div class="msKpi">
+            <div class="k">Timing</div>
+            <div class="v">${pct(prox.onDay + prox.plusminus1, proxTotal)}%</div>
+            <div class="m muted">am Eisprung / ±1 Tag</div>
+          </div>
+        </div>
+
+        <div class="msBars">
+          <div class="msBarsLabel muted">Nähe zum Eisprung (nur Zyklen mit Mittelschmerz)</div>
+          <div class="msBar" role="img" aria-label="Verteilung Nähe zum Eisprung">
+            <span class="seg s1" style="width:${(proxTotal ? (prox.onDay/proxTotal*100) : 0).toFixed(1)}%"></span>
+            <span class="seg s2" style="width:${(proxTotal ? (prox.plusminus1/proxTotal*100) : 0).toFixed(1)}%"></span>
+            <span class="seg s3" style="width:${(proxTotal ? (prox.farther/proxTotal*100) : 0).toFixed(1)}%"></span>
+          </div>
+          <div class="msLegend">
+            <span class="msLegendItem"><span class="dot msDot1"></span>am ES: <b>${prox.onDay}</b></span>
+            <span class="msLegendItem"><span class="dot msDot2"></span>±1: <b>${prox.plusminus1}</b></span>
+            <span class="msLegendItem"><span class="dot msDot3"></span>weiter: <b>${prox.farther}</b></span>
+          </div>
+        </div>
+
+        <details class="msDetails">
+          <summary>Details (Seite & Muster)</summary>
+          <div class="msDetailsBody">
+            <div class="grid2" style="margin-top:10px;">
+              <div class="card inner"><div class="muted">Seite: rechts</div><div class="big">${c.rechts} <span class="muted" style="font-size:12px;">(${pct(c.rechts, s.withMSCount)}%)</span></div></div>
+              <div class="card inner"><div class="muted">Seite: links</div><div class="big">${c.links} <span class="muted" style="font-size:12px;">(${pct(c.links, s.withMSCount)}%)</span></div></div>
+              <div class="card inner"><div class="muted">Beidseitig</div><div class="big">${c.beidseitig}</div></div>
+              <div class="card inner"><div class="muted">Muster (L/R)</div><div class="big">${payload.escapeHtml ? payload.escapeHtml(s.patternLabel) : s.patternLabel}</div></div>
+            </div>
+          </div>
+        </details>
+
+        <div class="msHint muted">
+          Hinweis: Der Eisprung ist in Lunacy eine Näherung (LH+ hat Priorität). Diese Auswertung ist rein statistisch.
         </div>
       </div>
     `;
