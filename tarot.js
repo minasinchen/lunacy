@@ -11,58 +11,34 @@
   const KEY_DRAW_PREFIX = "lunacy_tarot_draw_v1:"; // + YYYY-MM-DD
 
   // gentle tap-progress opacity ramp (quiet reveal)
-  const OPACITY_STEPS = [0.12, 0.16, 0.22, 0.30, 0.42, 0.58, 0.76, 0.92];
+  const OPACITY_STEPS = [0.22, 0.30, 0.42, 0.58, 0.76, 0.92];
   const TAP_WINDOW_MS = 2400;
 
   // Minimal deck: neutral titles + keywords (no interpretations)
   const DECK = [
-    { t:"Der Kreis", k:["Rhythmus","Wiederkehr","Grenzen","Halt"] },
-    { t:"Die Schwelle", k:["Übergang","Mut","Nein / Ja","Klarheit"] },
-    { t:"Das Leise", k:["Stille","Feinheit","Zuhören","Tempo"] },
-    { t:"Die Flut", k:["Intensität","Bewegung","Weichheit","Durchlassen"] },
-    { t:"Die Kante", k:["Abgrenzung","Schutz","Ehrlichkeit","Respekt"] },
-    { t:"Der Kern", k:["Wert","Mitte","Wesentliches","Einfach"] },
-    { t:"Der Funke", k:["Impuls","Neugier","Start","Spiel"] },
-    { t:"Der Schatten", k:["Unerkanntes","Anteil","Scham","Wahrheit"] },
-    { t:"Die Hand", k:["Berührung","Tun","Fürsorge","Präsenz"] },
-    { t:"Der Atem", k:["Raum","Pausen","Regulation","Körper"] },
-    { t:"Die Linie", k:["Richtung","Priorität","Fokus","Entscheidung"] },
-    { t:"Der Spiegel", k:["Reflexion","Projektion","Selbstbild","Fragen"] },
-    { t:"Der Garten", k:["Nähren","Geduld","Wachsen","Zyklen"] },
-    { t:"Das Feuer", k:["Energie","Grenzen","Mut","Klarheit"] },
-    { t:"Das Wasser", k:["Gefühl","Fluss","Empfangen","Weich"] },
-    { t:"Die Erde", k:["Körper","Realität","Stabilität","Routinen"] },
-    { t:"Die Luft", k:["Gedanke","Weite","Perspektive","Sprache"] },
-    { t:"Der Mond", k:["Inneres","Nacht","Wandel","Intuition"] },
-    { t:"Der Stern", k:["Orientierung","Hoffnung","Weitblick","Leuchten"] },
-    { t:"Die Ruhe", k:["Ausruhen","Grenzen","Sanftheit","Zeit"] },
-    { t:"Die Welle", k:["Ankommen","Abklingen","Akzeptanz","Atmen"] },
-    { t:"Die Quelle", k:["Ursprung","Bedürfnis","Wahrheit","Durst"] },
-    { t:"Der Faden", k:["Verbindung","Geschichte","Kontinuität","Sinn"] },
-    { t:"Die Tür", k:["Option","Entscheid","Loslassen","Einlassen"] },
-    { t:"Der Raum", k:["Weite","Platz","Erlaubnis","Sicherheit"] },
-    { t:"Die Grenze", k:["Stop","Ja","Eindeutigkeit","Selbstschutz"] },
-    { t:"Die Maske", k:["Rolle","Bild","Schutz","Echtheit"] },
-    { t:"Der Blick", k:["Beobachten","Neugier","Annahme","Zartheit"] },
-    { t:"Die Stimme", k:["Ausdruck","Wunsch","Klartext","Ton"] },
-    { t:"Das Gewicht", k:["Last","Priorität","Ballast","Wahl"] },
-    { t:"Das Licht", k:["Klarheit","Wärme","Sichtbar","Sanft"] },
-    { t:"Der Knoten", k:["Spannung","Verstrickt","Geduld","Lösen"] },
-    { t:"Die Brücke", k:["Beziehung","Übergang","Nähe","Dialog"] },
-    { t:"Die Schale", k:["Containment","Hülle","Zart","Schutz"] },
-    { t:"Der Puls", k:["Lebendigkeit","Tempo","Signal","Wahrnehmen"] },
-    { t:"Die Ordnung", k:["Struktur","Ritual","Einfachheit","Platz"] },
-    { t:"Das Unfertige", k:["Prozess","Üben","Neugier","Fehler"] },
-    { t:"Der Mut", k:["Wagnis","Herz","Grenzen","Ehrlich"] },
-    { t:"Die Milde", k:["Freundlich","Weich","Nachsicht","Würde"] },
-    { t:"Der Schnitt", k:["Klar","Trennen","Ende","Raum"] },
-    { t:"Die Nähe", k:["Kontakt","Wärme","Zuwendung","Sehen"] },
-    { t:"Die Ferne", k:["Abstand","Perspektive","Atem","Weite"] },
-    { t:"Der Anfang", k:["Start","Absicht","Neuer Schritt","Leise"] },
-    { t:"Das Ende", k:["Abschluss","Ernte","Loslassen","Dank"] },
-    { t:"Der Takt", k:["Timing","Rhythmus","Pausen","Zyklus"] },
-    { t:"Die Frage", k:["Warum","Wie","Neugier","Offen"] },
-  ];
+  { t:"0 — Der Narr", k:["Anfang","Offenheit","Neugier","Mut"] },
+  { t:"I — Der Magier", k:["Wirksamkeit","Ressourcen","Fokus","Handlung"] },
+  { t:"II — Die Hohepriesterin", k:["Innenwissen","Stille","Grenzen","Wahrnehmung"] },
+  { t:"III — Die Kaiserin", k:["Nähren","Körper","Fülle","Sanftheit"] },
+  { t:"IV — Der Kaiser", k:["Struktur","Rahmen","Verantwortung","Klarheit"] },
+  { t:"V — Der Hierophant", k:["Werte","Tradition","Lernen","Orientierung"] },
+  { t:"VI — Die Liebenden", k:["Wahl","Verbindung","Ehrlichkeit","Nähe"] },
+  { t:"VII — Der Wagen", k:["Richtung","Antrieb","Selbstführung","Tempo"] },
+  { t:"VIII — Kraft", k:["Mut","Zartheit","Selbstmitgefühl","Regulation"] },
+  { t:"IX — Der Eremit", k:["Rückzug","Klarheit","Innenschau","Priorität"] },
+  { t:"X — Rad des Schicksals", k:["Zyklus","Wandel","Timing","Akzeptanz"] },
+  { t:"XI — Gerechtigkeit", k:["Balance","Verantwortung","Ausgleich","Klarheit"] },
+  { t:"XII — Der Gehängte", k:["Pause","Perspektive","Loslassen","Umdenken"] },
+  { t:"XIII — Tod", k:["Ende","Übergang","Klärung","Raum"] },
+  { t:"XIV — Mäßigkeit", k:["Mitte","Mischung","Geduld","Feinabstimmung"] },
+  { t:"XV — Der Teufel", k:["Bindung","Verlangen","Muster","Ehrlichkeit"] },
+  { t:"XVI — Der Turm", k:["Bruch","Wahrheit","Befreiung","Neustart"] },
+  { t:"XVII — Der Stern", k:["Hoffnung","Ausrichtung","Heilung","Weite"] },
+  { t:"XVIII — Der Mond", k:["Unklarheit","Gefühl","Nacht","Intuition"] },
+  { t:"XIX — Die Sonne", k:["Lebendigkeit","Klarheit","Wärme","Sichtbar"] },
+  { t:"XX — Das Gericht", k:["Ruf","Bilanz","Vergebung","Aufwachen"] },
+  { t:"XXI — Die Welt", k:["Ganzheit","Abschluss","Integration","Zugehörigkeit"] },
+];
 
   // ---------- utilities ----------
   const clamp = (x,a,b)=>Math.max(a, Math.min(b,x));
@@ -196,6 +172,7 @@
     if (!body) return;
 
     const three = shouldShowThreeCards(dateISO);
+    body.classList.toggle("tarotSingle", !three);
     const cards = uniquePicks(dateISO, three ? 3 : 1);
 
     body.innerHTML = "";
@@ -205,16 +182,13 @@
       if (!three){
         intro.innerHTML = `
           <div class="tarotIntroTitle">Heute</div>
-          <div class="tarotIntroText">Eine Karte – als Spiegel für deinen aktuellen Stand. Keine Deutung. Nur Raum.</div>
-          <div class="tarotExplainRow" aria-hidden="true">
-            <span class="tarotExplainPill">Tippe, um umzudrehen</span>
-            <span class="tarotExplainPill">Tippe erneut, um zurückzudrehen</span>
-          </div>
+          <div class="tarotIntroText">Eine Karte – als Spiegel für deinen aktuellen Stand.</div>
+         
         `;
       }else{
         intro.innerHTML = `
           <div class="tarotIntroTitle">Heute</div>
-          <div class="tarotIntroText">Drei Blickrichtungen – innen, Beziehung, Welt. Keine Aussagen über Zukunft. Nur das, was jetzt da ist.</div>
+          <div class="tarotIntroText">Heute ist ein besonderer Tag, drei Karten, drei Blickrichtungen – nach innen, in die Beziehung, auf die Welt. </div>
         `;
       }
     }
@@ -268,6 +242,8 @@
 
   function buildTarotFlip(card, ctx){
     const flip = document.createElement("button");
+	 const wrap = document.createElement("div");
+  wrap.className = "tarotUnit"; // neu: wrapper für Karte + Meta
     flip.type = "button";
     flip.className = "tarotFlip";
     flip.setAttribute("aria-label", "Tarotkarte umdrehen");
@@ -283,21 +259,25 @@
     let wasFlipped = false;
     try{ wasFlipped = localStorage.getItem(flippedKey) === "1"; }catch(e){}
 
-    flip.innerHTML = `
-      <div class="tarotInner">
-        <div class="tarotFace tarotBack">
-          <img class="tarotBackImg" src="tarot-back.png" alt="" aria-hidden="true">
-        </div>
-        <div class="tarotFace tarotFront">
-          <div>
-            <div class="tarotTitle">${escapeHtml(card.t)}</div>
-            <div class="tarotKeywords">
-              ${card.k.map(x=>`<span class="tarotKw">${escapeHtml(x)}</span>`).join("")}
-            </div>
-          </div>
-        </div>
+     // button enthält NUR die Kartenflächen
+  flip.innerHTML = `
+    <div class="tarotInner">
+      <div class="tarotFace tarotBack">
+        <img class="tarotBackImg" src="tarot-back.png" alt="" aria-hidden="true">
       </div>
-    `;
+      <div class="tarotFace tarotFront" aria-hidden="true"></div>
+    </div>
+  `;
+
+  const meta = document.createElement("div");
+  meta.className = "tarotMeta";
+  meta.setAttribute("aria-live","polite");
+  meta.innerHTML = `
+    <div class="tarotMetaTitle">${escapeHtml(card.t)}</div>
+    <div class="tarotMetaKws">
+      ${card.k.map(x=>`<span class="tarotMetaKw">${escapeHtml(x)}</span>`).join("")}
+    </div>
+  `;
 
     const setState = (isFlipped)=>{
       flip.classList.toggle("is-flipped", !!isFlipped);
@@ -311,7 +291,9 @@
       setState(!flip.classList.contains("is-flipped"));
     });
 
-    return flip;
+      wrap.appendChild(flip);
+  wrap.appendChild(meta);
+  return wrap;
   }
 
   function escapeHtml(s){
