@@ -16,6 +16,11 @@
     const view = document.getElementById("view-stats");
     if (!view) return null;
 
+    // ✅ benutze den festen Platzhalter aus der HTML
+  const slot = document.getElementById("statsMittelschmerz");
+  if (slot) return slot;
+
+  // Fallback: falls der Slot fehlt, hänge ans Ende
     let box = document.getElementById("mittelschmerzStats");
     if (box) return box;
 
@@ -23,16 +28,11 @@
     box.id = "mittelschmerzStats";
     box.style.marginTop = "14px";
 
-    // Insert after the last12 table if possible
-    const last12 = document.getElementById("last12");
-    if (last12 && last12.parentElement){
-      last12.insertAdjacentElement("afterend", box);
-    } else {
-      view.appendChild(box);
-    }
+    view.appendChild(box);
+  return box;
+}
 
-    return box;
-  }
+  
 
   function findMittelschmerzInWindow(notesByDate, start, end, between, parseISO){
     const keys = Object.keys(notesByDate || {}).sort();
