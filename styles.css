@@ -1528,3 +1528,206 @@ a:hover {
 .backBtn {
   margin: 10px 0 16px;
 }
+
+
+/* =========================
+   📊 Stats Hero Summary
+   - isolated styles (no overrides)
+   ========================= */
+.statsHero{
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 20px;
+  padding: 14px;
+  background:
+    radial-gradient(600px 240px at 20% -20%, rgba(201,166,255,0.14), transparent 55%),
+    radial-gradient(520px 260px at 90% 0%, rgba(247,217,120,0.10), transparent 55%),
+    rgba(24,16,52,0.88);
+  box-shadow: 0 18px 50px rgba(0,0,0,0.45);
+}
+
+.statsHeroTop{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:10px;
+}
+
+.statsHeroTitle{
+  font-weight: 950;
+  font-size: 18px;
+  letter-spacing: 0.2px;
+}
+
+.statsHeroSub{
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+.statsHeroBadge{
+  border: 1px solid rgba(255,255,255,0.16);
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 12px;
+  background: rgba(0,0,0,0.18);
+  white-space: nowrap;
+}
+
+.statsPills{
+  display:grid;
+  grid-template-columns: repeat(4, minmax(0,1fr));
+  gap:10px;
+  margin-top: 12px;
+}
+
+.pillCard{
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 16px;
+  padding: 10px 12px;
+  background: rgba(0,0,0,0.16);
+}
+
+.pillCard .k{
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.pillCard .v{
+  font-weight: 950;
+  font-size: 18px;
+  margin-top: 2px;
+}
+
+.statsHeroNote{
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255,255,255,0.12);
+  font-size: 13px;
+  color: rgba(207,198,234,0.95);
+}
+
+@media (max-width: 900px){
+  .statsPills{ grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 420px){
+  .statsHeroTitle{ font-size: 17px; }
+  .pillCard .v{ font-size: 17px; }
+}
+
+
+/* =========================
+   🌙 Mittelschmerz Summary (Stats)
+   ========================= */
+.msHero{
+  margin-top: 14px;
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 20px;
+  padding: 14px;
+  background:
+    radial-gradient(520px 240px at 15% -15%, rgba(255,182,214,0.10), transparent 55%),
+    radial-gradient(520px 260px at 90% 0%, rgba(201,166,255,0.12), transparent 55%),
+    rgba(24,16,52,0.88);
+  box-shadow: 0 18px 50px rgba(0,0,0,0.45);
+}
+
+.msHeroTop{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:10px;
+}
+
+.msTitle{ font-weight: 950; font-size: 17px; letter-spacing: 0.2px; }
+.msSub{ font-size: 12px; margin-top: 2px; }
+
+.msBadge{
+  border: 1px solid rgba(255,255,255,0.16);
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 12px;
+  background: rgba(0,0,0,0.18);
+  white-space: nowrap;
+}
+
+.msKpis{
+  display:grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap:10px;
+  margin-top: 12px;
+}
+@media (max-width: 900px){
+  .msKpis{ grid-template-columns: 1fr; }
+}
+
+.msKpi{
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 16px;
+  padding: 10px 12px;
+  background: rgba(0,0,0,0.16);
+}
+.msKpi .k{
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.msKpi .v{
+  font-weight: 950;
+  font-size: 18px;
+  margin-top: 2px;
+}
+.msKpi .m{ font-size: 12px; margin-top: 2px; line-height: 1.25; }
+
+.msBars{ margin-top: 12px; }
+.msBarsLabel{ font-size: 12px; margin-bottom: 8px; }
+
+.msBar{
+  height: 12px;
+  border-radius: 999px;
+  overflow:hidden;
+  display:flex;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(0,0,0,0.18);
+}
+.msBar .seg{ height:100%; display:block; }
+.msBar .s1{ background: rgba(247,217,120,0.55); } /* am ES */
+.msBar .s2{ background: rgba(202,169,255,0.55); } /* ±1 */
+.msBar .s3{ background: rgba(120,168,255,0.40); } /* weiter */
+
+.msLegend{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+  margin-top: 8px;
+  font-size: 12px;
+  color: rgba(207,198,234,0.92);
+}
+.msLegendItem{ display:inline-flex; align-items:center; gap:6px; }
+.msLegendItem b{ color: var(--text); font-weight: 950; }
+.msDot1{ background: rgba(247,217,120,0.85); }
+.msDot2{ background: rgba(202,169,255,0.85); }
+.msDot3{ background: rgba(120,168,255,0.70); }
+
+.msDetails{
+  margin-top: 10px;
+  border-top: 1px solid rgba(255,255,255,0.10);
+  padding-top: 10px;
+}
+.msDetails > summary{
+  cursor: pointer;
+  list-style: none;
+  color: rgba(207,198,234,0.92);
+  font-size: 13px;
+  font-weight: 850;
+  user-select: none;
+}
+.msDetails > summary::-webkit-details-marker{ display:none; }
+.msDetails > summary::after{
+  content: "▾";
+  float: right;
+  opacity: 0.9;
+}
+.msDetails[open] > summary::after{ content: "▴"; }
+
+.msHint{ margin-top: 10px; font-size: 12px; line-height: 1.35; }

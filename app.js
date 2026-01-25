@@ -1176,17 +1176,45 @@ function rerenderStats(){
   const model = buildCalendarModel(periods, 12);
   const notesByDate = loadNotesByDate();
 
+  
+  const heroLine = (()=>{
+    const z = Math.round(model.personalOvuOffset+1);
+    return `Kurz gesagt: Dein Zyklus ist <b>${variability}</b>, mit Eisprung meist um <b>ZT ${z}</b>.`;
+  })();
+
   statsSummary.innerHTML = `
-    <div class="grid2">
-      <div class="card inner"><div class="muted">Ø Zyklus</div><div class="big">${avgCycle} Tage</div></div>
-      <div class="card inner"><div class="muted">Ø Periode</div><div class="big">${avgPeriod} Tage</div></div>
-      <div class="card inner"><div class="muted">Schwankung (σ)</div><div class="big">${stdCycle.toFixed(1)} Tage</div></div>
-      <div class="card inner"><div class="muted">Einschätzung</div><div class="big">${variability}</div></div>
-      <div class="card inner" style="grid-column:1/-1;"><div class="muted">Eisprung-Offset (gelernt)</div><div class="big">Tag ${model.personalOvuOffset+1}</div></div>
+    <div class="statsHero">
+      <div class="statsHeroTop">
+        <div>
+          <div class="statsHeroTitle">Dein Zyklus im Überblick</div>
+          <div class="statsHeroSub muted">Basierend auf deinen letzten Zyklen</div>
+        </div>
+        <span class="statsHeroBadge">Daten: ${Math.min(12, periods.length)} Zyklen</span>
+      </div>
+
+      <div class="statsPills">
+        <div class="pillCard">
+          <div class="k">Ø Zyklus</div>
+          <div class="v">${avgCycle} Tage</div>
+        </div>
+        <div class="pillCard">
+          <div class="k">Ø Periode</div>
+          <div class="v">${avgPeriod} Tage</div>
+        </div>
+        <div class="pillCard">
+          <div class="k">Schwankung</div>
+          <div class="v">${stdCycle.toFixed(1)} Tage</div>
+        </div>
+        <div class="pillCard">
+          <div class="k">Eisprung</div>
+          <div class="v">ZT ${model.personalOvuOffset+1}</div>
+        </div>
+      </div>
+
+      <div class="statsHeroNote">${heroLine}</div>
     </div>
   `;
-
-  // table last 12 cycles: start, bleed length, cycle length, ovulation day (ZT) + date
+// table last 12 cycles: start, bleed length, cycle length, ovulation day (ZT) + date
   const cycles = periods.slice(0, 12).sort((a,b)=>a.start-b.start); // old->new
   const rows = [];
   for (let i=0;i<cycles.length;i++){
