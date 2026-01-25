@@ -1214,50 +1214,6 @@ function rerenderStats(){
       <div class="statsHeroNote">${heroLine}</div>
     </div>
   `;
-// table last 12 cycles: start, bleed length, cycle length, ovulation day (ZT) + date
-  const cycles = periods.slice(0, 12).sort((a,b)=>a.start-b.start); // old->new
-  const rows = [];
-  for (let i=0;i<cycles.length;i++){
-    const cur = cycles[i];
-    const next = (i+1 < cycles.length) ? cycles[i+1] : { start: addDays(cur.start, avgCycle) };
-
-    const cycleLen = diffDays(cur.start, next.start);
-    const bleedLen = diffDays(cur.start, cur.end) + 1;
-
-    const ov = computeOvulationForCycle(cur.start, next.start, model, notesByDate);
-    rows.push({
-      start: formatDateDE(cur.start),
-      bleedLen: String(bleedLen),
-      cycleLen: String((cycleLen>=15 && cycleLen<=60)?cycleLen:"–"),
-      ov: `ZT ${ov.zt} (${formatDateDE(ov.ovuDate)})${ov.reasonText ? " • "+escapeHtml(ov.reasonText) : ""}`,
-    });
-  }
-
-  const head = `
-    <div class="th">Start</div>
-    <div class="th">Periode (Tage)</div>
-    <div class="th">Zyklus (Tage)</div>
-    <div class="th">Eisprung (Zyklustag)</div>
-  `;
-
-  const desktopCells = rows.map(r=>`
-    <div class="td">${r.start}</div>
-    <div class="td">${r.bleedLen}</div>
-    <div class="td">${r.cycleLen}</div>
-    <div class="td">${r.ov}</div>
-  `).join("");
-
-  const mobileCards = rows.map(r=>`
-    <div class="rowCard">
-      <div class="kv"><div class="k">Start</div><div class="v">${r.start}</div></div>
-      <div class="kv"><div class="k">Periode</div><div class="v">${r.bleedLen} Tage</div></div>
-      <div class="kv"><div class="k">Zyklus</div><div class="v">${r.cycleLen}</div></div>
-      <div class="kv"><div class="k">Eisprung</div><div class="v">${r.ov}</div></div>
-    </div>
-  `).join("");
-
-  last12.innerHTML = `<div class="tableGrid" style="grid-template-columns:1fr 1fr 1fr 2fr;">${head}${desktopCells}${mobileCards}</div>`;
-
   // ---- Mittelschmerz-Statistik (optional module) ----
   if (typeof window.renderMittelschmerzStats === "function"){
     try{
@@ -1303,6 +1259,50 @@ function rerenderStats(){
       console.warn("renderStatsCharts failed", e);
     }
   }
+// table last 12 cycles: start, bleed length, cycle length, ovulation day (ZT) + date
+  const cycles = periods.slice(0, 12).sort((a,b)=>a.start-b.start); // old->new
+  const rows = [];
+  for (let i=0;i<cycles.length;i++){
+    const cur = cycles[i];
+    const next = (i+1 < cycles.length) ? cycles[i+1] : { start: addDays(cur.start, avgCycle) };
+
+    const cycleLen = diffDays(cur.start, next.start);
+    const bleedLen = diffDays(cur.start, cur.end) + 1;
+
+    const ov = computeOvulationForCycle(cur.start, next.start, model, notesByDate);
+    rows.push({
+      start: formatDateDE(cur.start),
+      bleedLen: String(bleedLen),
+      cycleLen: String((cycleLen>=15 && cycleLen<=60)?cycleLen:"–"),
+      ov: `ZT ${ov.zt} (${formatDateDE(ov.ovuDate)})${ov.reasonText ? " • "+escapeHtml(ov.reasonText) : ""}`,
+    });
+  }
+
+  const head = `
+    <div class="th">Start</div>
+    <div class="th">Periode (Tage)</div>
+    <div class="th">Zyklus (Tage)</div>
+    <div class="th">Eisprung (Zyklustag)</div>
+  `;
+
+  const desktopCells = rows.map(r=>`
+    <div class="td">${r.start}</div>
+    <div class="td">${r.bleedLen}</div>
+    <div class="td">${r.cycleLen}</div>
+    <div class="td">${r.ov}</div>
+  `).join("");
+
+  const mobileCards = rows.map(r=>`
+    <div class="rowCard">
+      <div class="kv"><div class="k">Start</div><div class="v">${r.start}</div></div>
+      <div class="kv"><div class="k">Periode</div><div class="v">${r.bleedLen} Tage</div></div>
+      <div class="kv"><div class="k">Zyklus</div><div class="v">${r.cycleLen}</div></div>
+      <div class="kv"><div class="k">Eisprung</div><div class="v">${r.ov}</div></div>
+    </div>
+  `).join("");
+
+  last12.innerHTML = `<div class="tableGrid" style="grid-template-columns:1fr 1fr 1fr 2fr;">${head}${desktopCells}${mobileCards}</div>`;
+
 
 }
 
