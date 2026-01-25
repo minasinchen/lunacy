@@ -1218,6 +1218,7 @@ function rerenderStats(){
   if (typeof window.renderMittelschmerzStats === "function"){
     try{
       window.renderMittelschmerzStats({
+        targetId: "statsMittelschmerz",
         periods,
         model,
         notesByDate,
