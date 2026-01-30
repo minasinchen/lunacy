@@ -129,6 +129,11 @@
     setLeftPct(mOvu, ovPct);
     setLeftPct(mToday, todayPct);
 
+// TTC Blastozyste: direkt auf dem Heute-Kreis rendern (überdeckt ihn komplett)
+if (mToday && typeof window.renderBlastocyst === "function"){
+  window.renderBlastocyst({ markerEl: mToday });
+}
+
     // Dates (bottom)
     if (startLabel) startLabel.textContent = safeFormatDateDE(p.cycleStart);
     if (ovuLabel) ovuLabel.textContent = safeFormatDateDE(p.ovuDate);

@@ -2191,3 +2191,130 @@ a:hover {
   border-radius: inherit;
   display: block;
 }
+
+
+/* Blastozyste liegt exakt über dem Heute-Kreis */
+.blastocyst{
+  position: absolute;
+  inset: 0;              /* deckt den ganzen Kreis ab */
+  border-radius: 999px;
+  cursor: pointer;
+  z-index: 6;
+
+  --blasto-x: 0px; /* hier kannst du 1px/2px/3px testen */
+  transform: translateX(var(--blasto-x));
+
+  background:
+    radial-gradient(circle at 30% 30%,
+      rgba(255,255,255,0.95),
+      rgba(247,217,120,0.9) 35%,
+      rgba(247,217,120,0.55) 60%,
+      rgba(247,217,120,0.25) 100%
+    );
+
+  box-shadow:
+    0 0 10px rgba(247,217,120,0.55),
+    0 0 22px rgba(247,217,120,0.35);
+
+  animation: blastoPulse 3.2s ease-in-out infinite;
+}
+
+@keyframes blastoPulse {
+  0%, 100% {
+    transform: translateX(var(--blasto-x)) scale(1);
+    box-shadow:
+      0 0 10px rgba(247,217,120,0.45),
+      0 0 22px rgba(247,217,120,0.30);
+  }
+  50% {
+    transform: translateX(var(--blasto-x)) scale(1.12);
+    box-shadow:
+      0 0 18px rgba(247,217,120,0.70),
+      0 0 36px rgba(247,217,120,0.45);
+  }
+}
+/* === Modal ======================================= */
+
+.blastoModal .modalCard {
+  max-width: 420px;
+max-height: 88vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.blastoModal .blastoHeaderRight{
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.blastoModal .blastoToggle{
+  padding: 10px 12px;
+  min-width: 46px;
+}
+
+.blastoModal .blastoToggle .chev{
+  display: inline-block;
+  transition: transform 180ms ease;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.blastoModal.expanded .blastoToggle .chev{
+  transform: rotate(180deg);
+}
+
+.blastoModal .blastoBody{
+  margin-top: 10px;
+}
+
+.blastoModal .blastoLine,
+.blastoModal .blastoStep{
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 14px;
+  padding: 10px 12px;
+  background: rgba(255,255,255,0.03);
+}
+
+.blastoModal .blastoTag{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 12px;
+  border: 1px solid rgba(245,211,106,0.30);
+  background: rgba(245,211,106,0.10);
+  color: var(--text);
+  font-weight: 900;
+}
+
+.blastoModal .blastoText{
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.blastoModal .blastoSteps{
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.blastoModal .blastoStep.inactive{
+  opacity: 0.42;  /* „aktuell nicht“ ausgegraut */
+}
+
+.blastoModal .blastoStep.current{
+  opacity: 1;
+  border-color: rgba(245,211,106,0.28);
+  box-shadow: 0 12px 30px rgba(245,211,106,0.06);
+}
+
+.modalHeader{
+  position: sticky;
+  top: 0;
+  background: rgba(15,12,26,0.95);
+  z-index: 2;
+  padding-bottom: 8px;
+}
