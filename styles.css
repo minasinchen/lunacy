@@ -2420,3 +2420,27 @@ label.medsPresetOpt{ flex-direction:row !important; }
 .medsModal .modalCard {
   padding-bottom: 24px;
 }
+
+/* ===== Medi Slots – bessere Lesbarkeit ===== */
+
+.medsSlotChips {
+  gap: 10px;
+}
+
+.medsChip {
+  background: rgba(255,255,255,0.06);
+  color: #e6dcff;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  border-radius: 999px;
+  padding: 8px 14px;
+  border: 1px solid rgba(255,255,255,0.14);
+}
+
+.medsChip.on {
+  background: rgba(202,169,255,0.18);   /* lavender glow */
+  color: #ffffff;
+  border-color: rgba(202,169,255,0.55);
+  box-shadow: 0 0 0 1px rgba(202,169,255,0.25),
+              0 0 12px rgba(202,169,255,0.25);
+}
