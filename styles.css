@@ -2444,3 +2444,46 @@ label.medsPresetOpt{ flex-direction:row !important; }
   box-shadow: 0 0 0 1px rgba(202,169,255,0.25),
               0 0 12px rgba(202,169,255,0.25);
 }
+
+/* ===== Fix: Select / Dropdown Lesbarkeit (Dark Mode) ===== */
+
+.medsModal select {
+  background-color: rgba(20, 16, 40, 0.95);
+  color: #ffffff;
+  border: 1px solid rgba(255,255,255,0.18);
+}
+
+/* Dropdown-Liste */
+.medsModal select option {
+  background-color: #1a1433;   /* dunkles Violett */
+  color: #ffffff;
+}
+
+/* Hover / aktiv */
+.medsModal select option:checked,
+.medsModal select option:hover {
+  background-color: rgba(202,169,255,0.35); /* Lavendel */
+  color: #ffffff;
+}
+
+/* ===== Global Fix: Select/Option Lesbarkeit im Dark UI ===== */
+
+/* Das geschlossene Select-Feld */
+select {
+  background-color: rgba(20, 16, 40, 0.95);
+  color: #ffffff;
+  border: 1px solid rgba(255,255,255,0.18);
+}
+
+/* Geöffnete Dropdown-Liste (Optionen) */
+select option {
+  background-color: #1a1433;   /* dunkles Violett */
+  color: #ffffff;
+}
+
+/* Ausgewählt / Hover */
+select option:checked,
+select option:hover {
+  background-color: rgba(202,169,255,0.35);
+  color: #ffffff;
+}
