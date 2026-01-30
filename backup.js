@@ -15,6 +15,8 @@
   const K_NOTES = "pt_notes_v1";
   const K_SETTINGS = "pt_settings_v1";
 
+const K_MED_SETTINGS = "pt_med_settings_v1";
+const K_MED_LOG = "pt_med_log_v1";
   const K_ENABLED = "lunacy_backup_enabled_v1";
   const K_LAST_WRITE = "lunacy_backup_last_write_ms_v1";
   const K_LAST_HASH = "lunacy_backup_last_hash_v1";
@@ -160,6 +162,8 @@
     const bleedDays = readStorage(K_BLEED, []);
     const notesByDate = readStorage(K_NOTES, {});
     const settings = readStorage(K_SETTINGS, {});
+    const medSettings = readStorage(K_MED_SETTINGS, {});
+    const medLog = readStorage(K_MED_LOG, { events:[] });
 
     return {
       schema: "lunacy-backup-v1",
@@ -168,6 +172,8 @@
         bleedDays,
         notesByDate,
         settings,
+        medSettings,
+        medLog,
       }
     };
   }
@@ -409,6 +415,23 @@
         }
       }
 
+
+function mergeMedLog(cur, inc){
+  const out = { events:[] };
+  const a = (cur && Array.isArray(cur.events)) ? cur.events : [];
+  const b = (inc && Array.isArray(inc.events)) ? inc.events : [];
+  out.events = a.slice();
+  const seen = new Set(out.events.map(e=>String(e && (e.id || (e.itemId+"|"+e.dateISO+"|"+e.slot))).slice(0,200)));
+  for (const e of b){
+    const key = String(e && (e.id || (e.itemId+"|"+e.dateISO+"|"+e.slot))).slice(0,200);
+    if (e && !seen.has(key)){
+      seen.add(key);
+      out.events.push(e);
+    }
+  }
+  return out;
+}
+
       out[dateISO] = a;
     }
     return out;
@@ -428,19 +451,27 @@
     const incBleed = Array.isArray(incoming.bleedDays) ? incoming.bleedDays : [];
     const incNotes = incoming.notesByDate && typeof incoming.notesByDate === "object" ? incoming.notesByDate : {};
     const incSettings = incoming.settings && typeof incoming.settings === "object" ? incoming.settings : {};
+    const incMedSettings = incoming.medSettings && typeof incoming.medSettings === "object" ? incoming.medSettings : {};
+    const incMedLog = incoming.medLog && typeof incoming.medLog === "object" ? incoming.medLog : { events:[] };
 
     if (replaceExisting){
       writeStorage(K_BLEED, incBleed);
       writeStorage(K_NOTES, incNotes);
       writeStorage(K_SETTINGS, incSettings);
+      writeStorage(K_MED_SETTINGS, incMedSettings);
+      writeStorage(K_MED_LOG, incMedLog);
     } else {
       const curBleed = readStorage(K_BLEED, []);
       const curNotes = readStorage(K_NOTES, {});
       const curSettings = readStorage(K_SETTINGS, {});
+      const curMedSettings = readStorage(K_MED_SETTINGS, {});
+      const curMedLog = readStorage(K_MED_LOG, { events:[] });
 
       writeStorage(K_BLEED, mergeArraysUnique(curBleed, incBleed));
       writeStorage(K_NOTES, mergeNotesByDate(curNotes, incNotes));
       writeStorage(K_SETTINGS, Object.assign({}, curSettings, incSettings));
+      writeStorage(K_MED_SETTINGS, Object.assign({}, curMedSettings, incMedSettings));
+      writeStorage(K_MED_LOG, mergeMedLog(curMedLog, incMedLog));
     }
 
     // After import, schedule a backup and refresh UI

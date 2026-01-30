@@ -6,6 +6,8 @@
 const KEY_BLEED   = "pt_bleed_v1";   // array of ISO dates with bleeding
 const KEY_NOTES   = "pt_notes_v1";   // {dateISO: [notes]}
 const KEY_SETTINGS= "pt_settings_v1";// {cycleLen,periodLen,ovuDay,motherSign,fatherSign,ttc}
+const KEY_MED_SETTINGS = "pt_med_settings_v1";
+const KEY_MED_LOG = "pt_med_log_v1";
 const KEY_LAST_CSV_BACKUP = "pt_last_csv_backup_v1"; // ISO timestamp of last manual CSV backup
 
 // iPhone/iPad Safari can't reliably auto-write a file outside the browser.
@@ -346,7 +348,7 @@ if (activeMobile) activeMobile.classList.add("active");
   if (name==="hormones") rerenderHormones();
   if (name==="stats") rerenderStats();
   if (name==="today") rerenderToday();
-  if (name==="settings") renderSettingsForm();
+  if (name==="settings"){ renderSettingsForm(); if (window.Meds && typeof Meds.renderSettingsUI==="function") Meds.renderSettingsUI(); }
 }
 
 // ---------- TODAY ----------
@@ -728,7 +730,11 @@ if (dateISO === todayISO){
       ` : ""}
     </div>
   `;
+
+  // Medi-Checkliste (Kalender-Kachel)
+  try{ if (window.Meds && typeof Meds.renderCalendarTile==='function') Meds.renderCalendarTile(); }catch(e){ console.warn('Meds.renderCalendarTile failed', e); }
 }
+
 
 // ---------- HORMONE CURVE (reference model; no measurements) ----------
 function gaussian(x, mu, sigma){
@@ -1589,6 +1595,17 @@ function exportAllToCSV(){
     }
   }
 
+
+// Medi-Checkliste (optional)
+const medSettingsRaw = localStorage.getItem(KEY_MED_SETTINGS) || "";
+const medLogRaw = localStorage.getItem(KEY_MED_LOG) || "";
+if (medSettingsRaw){
+  rows.push(["MED_SETTINGS","","","","","","", medSettingsRaw, "", "", "", "", "", "", ""]);
+}
+if (medLogRaw){
+  rows.push(["MED_LOG","","","","","","", medLogRaw, "", "", "", "", "", "", ""]);
+}
+
   const csv = toCSV(rows);
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
   const a = document.createElement("a");
@@ -1630,6 +1647,8 @@ async function importAllFromCSV(file, replaceExisting=false){
     localStorage.removeItem(KEY_BLEED);
     localStorage.removeItem(KEY_NOTES);
     localStorage.removeItem(KEY_SETTINGS);
+    localStorage.removeItem(KEY_MED_SETTINGS);
+    localStorage.removeItem(KEY_MED_LOG);
   }
 
   // existing
@@ -1641,6 +1660,22 @@ async function importAllFromCSV(file, replaceExisting=false){
     const row = rows[r];
     const rt = String(row[ri.record_type]||"").trim();
     if (!rt) continue;
+
+
+if (rt === "MED_SETTINGS"){
+  if (ri.text >= 0){
+    const raw = String(row[ri.text]||"");
+    if (raw) localStorage.setItem(KEY_MED_SETTINGS, raw);
+  }
+  continue;
+}
+if (rt === "MED_LOG"){
+  if (ri.text >= 0){
+    const raw = String(row[ri.text]||"");
+    if (raw) localStorage.setItem(KEY_MED_LOG, raw);
+  }
+  continue;
+}
 
     if (rt === "SETTINGS"){
       const cycleLen = clamp(Number(row[ri.cycleLen]||28), 15, 60);

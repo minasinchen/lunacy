@@ -734,7 +734,7 @@ input:focus, select:focus, textarea:focus{ border-color: rgba(201,166,255,0.60);
 }
 
 /* Modal */
-.modal{ position:fixed; inset:0; z-index:50; }
+.modal{ position:fixed; inset:0; z-index:50; overflow-y:auto; -webkit-overflow-scrolling:touch; padding: 0 10px; }
 .modalBackdrop{ position:absolute; inset:0; background:rgba(0,0,0,0.62); }
 .modalCard{
   position:relative;
@@ -746,6 +746,18 @@ input:focus, select:focus, textarea:focus{ border-color: rgba(201,166,255,0.60);
   padding: 14px;
   box-shadow: 0 22px 80px rgba(0,0,0,0.55);
 }
+
+/* Meds / Medi-Log: allow scrolling inside the modal card on small screens */
+.medsModalCard{
+  max-width: 520px;
+  max-height: calc(100dvh - 28px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+@supports not (height: 100dvh){
+  .medsModalCard{ max-height: calc(100vh - 28px); }
+}
+
 .modalHeader{ display:flex; justify-content:space-between; align-items:center; gap:10px; }
 
 .dayNoteIcon{
@@ -2317,4 +2329,94 @@ max-height: 88vh;
   background: rgba(15,12,26,0.95);
   z-index: 2;
   padding-bottom: 8px;
+}
+
+
+/* Medi-Checkliste – CSS Snippet
+.medsCard{
+  border:1px solid var(--line);
+  border-radius:18px;
+  background:rgba(255,255,255,0.03);
+  padding:12px;
+  margin-bottom:12px;
+}
+.medsRow{
+  display:flex;
+  gap:10px;
+  align-items:flex-start;
+  padding:8px 0;
+}
+.medsRow.done{opacity:.6} */
+
+/* =========================
+   💊 Medi-Checkliste – Zusatzstyles (History + IO)
+   -> ans ENDE von styles.css anhängen
+   ========================= */
+
+.medsCalHeader{ display:flex; align-items:center; justify-content:space-between; gap:10px; position:relative; z-index:3; }
+.medsCalGroup{ margin-top:10px; }
+.medsCalGroupTitle{ font-size:12px; opacity:0.8; margin:10px 2px 6px; }
+.medsCalList{ display:flex; flex-direction:column; gap:8px; }
+
+label.medsCalRow{ flex-direction:row !important; }
+.medsCalRow{
+  display:flex; align-items:center; gap:10px;
+  padding:10px 10px; border-radius:14px;
+  border:1px solid rgba(255,255,255,0.10);
+  background: rgba(255,255,255,0.03);
+}
+.medsCalRow input{ width:18px; height:18px; }
+.medsCalName{ font-weight:850; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.medsCalMeta{ font-size:11px; opacity:0.75; margin-left:auto; white-space:nowrap; }
+.medsCalRow.done{ opacity:0.62; }
+
+.medsMyList{ display:flex; flex-direction:column; gap:8px; margin-top:10px; }
+.medsLine{
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
+  padding:12px 12px; border-radius:16px;
+  border:1px solid rgba(255,255,255,0.10);
+  background: rgba(0,0,0,0.12);
+  cursor:pointer;
+}
+.medsLineLeft{ display:flex; align-items:center; gap:10px; min-width:0; }
+.medsLineIcon{ font-size:18px; }
+.medsLineName{ font-weight:850; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:60vw; }
+.medsLineRight{ display:flex; align-items:center; gap:10px; }
+.medsLineMeta{ font-size:12px; opacity:0.80; white-space:nowrap; }
+.medsLineChevron{ font-size:18px; opacity:0.75; }
+
+label.medsPresetOpt{ flex-direction:row !important; }
+.medsPresetOpt{ padding:10px 10px; }
+.medsPresetName{ font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+.medsHistory{ margin-top:12px; }
+.medsHistorySum{ cursor:pointer; }
+.medsHistoryList{ display:flex; flex-direction:column; gap:8px; margin-top:10px; }
+.medsHistoryRow{
+  width:100%;
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
+  padding:10px 12px; border-radius:14px;
+  border:1px solid rgba(255,255,255,0.10);
+  background: rgba(255,255,255,0.03);
+}
+.medsHistoryDate{ font-weight:850; }
+.medsHistoryMeta{ font-size:12px; opacity:0.8; }
+
+/* ===== Medi-Log Overlay: Scroll-Fix ===== */
+
+/* Das eigentliche Modal-Panel darf scrollen */
+.medsModal .modalCard {
+  max-height: calc(100vh - 80px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Sicherstellen, dass der Hintergrund nicht blockiert */
+.medsModal {
+  align-items: flex-start;
+}
+
+/* Optional: etwas Luft unten, damit letzte Zeile gut erreichbar ist */
+.medsModal .modalCard {
+  padding-bottom: 24px;
 }
