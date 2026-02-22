@@ -53,7 +53,7 @@
     const model = ctx.model;
 
     const cycleLen = Math.max(1, Number(model?.cycleLen) || 28);
-    const dayInCycle = clamp(safeDiffDays(cycleStart, today) + 1, 1, cycleLen);
+    const dayInCycle = Math.max(1, safeDiffDays(cycleStart, today) + 1); // no upper clamp
     const ovDay = clamp(safeDiffDays(cycleStart, ovuDate) + 1, 1, cycleLen);
 
     const isBleeding = Array.isArray(ctx.days) && ctx.days.includes(todayISO);
@@ -128,6 +128,11 @@
     const todayPct = clamp(((p.dayInCycle - 1) / Math.max(1, p.cycleLen - 1)) * 100, 0, 100);
     setLeftPct(mOvu, ovPct);
     setLeftPct(mToday, todayPct);
+
+// TTC Blastozyste: direkt auf dem Heute-Kreis rendern (überdeckt ihn komplett)
+if (mToday && typeof window.renderBlastocyst === "function"){
+  window.renderBlastocyst({ markerEl: mToday });
+}
 
     // Dates (bottom)
     if (startLabel) startLabel.textContent = safeFormatDateDE(p.cycleStart);

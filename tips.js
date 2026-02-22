@@ -4,7 +4,11 @@
 // ---------- TODAY: cycle context (re-used by hormones view) ----------
 function getCurrentCycleContext(){
   const days = loadBleedDays();
-  const periods = derivePeriodsFromBleed(days);
+  const allPeriods = derivePeriodsFromBleed(days);
+  // Use visible periods for cycle start / model (hidden cycles excluded from predictions)
+  const periods = (typeof window.filterVisiblePeriods === "function")
+    ? window.filterVisiblePeriods(allPeriods)
+    : allPeriods;
   const model = buildCalendarModel(periods, 12);
   if (!periods.length || !model.latestStart) return null;
 
@@ -57,7 +61,7 @@ function computePhaseForDate(dateISO, ctx){
   return {
     phaseKey,
     phaseLabel,
-    dayInCycle: clamp(dayInCycle, 1, model.cycleLen),
+    dayInCycle: Math.max(1, dayInCycle), // no upper clamp — long cycles run freely
     cycleLen: model.cycleLen,
     ovText,
     nextText,

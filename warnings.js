@@ -87,15 +87,19 @@
   }
 
   function computeCycleLengths(periods){
+    // Only count visible (non-hidden) cycles; no automatic length filter
     const ps = (periods||[]).slice().sort((a,b)=>a.start-b.start);
+    const isHiddenFn = (typeof window.isHiddenCycle === "function") ? window.isHiddenCycle : () => false;
     const lens = [];
     for (let i=0;i<ps.length-1;i++){
+      const startISO = isoDate(ps[i].start);
+      if (isHiddenFn(startISO)) continue;
       const a = ps[i].start;
       const b = ps[i+1].start;
       const len = (typeof window.diffDays === "function") ? window.diffDays(a,b) : Math.round((b-a)/(24*60*60*1000));
       if (Number.isFinite(len) && len > 0) lens.push(len);
     }
-    return lens; // old->new order by construction
+    return lens;
   }
 
   function computeWarnings(ctx, todayISO){

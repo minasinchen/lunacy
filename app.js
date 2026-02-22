@@ -6,7 +6,10 @@
 const KEY_BLEED   = "pt_bleed_v1";   // array of ISO dates with bleeding
 const KEY_NOTES   = "pt_notes_v1";   // {dateISO: [notes]}
 const KEY_SETTINGS= "pt_settings_v1";// {cycleLen,periodLen,ovuDay,motherSign,fatherSign,ttc}
+const KEY_MED_SETTINGS = "pt_med_settings_v1";
+const KEY_MED_LOG = "pt_med_log_v1";
 const KEY_LAST_CSV_BACKUP = "pt_last_csv_backup_v1"; // ISO timestamp of last manual CSV backup
+const KEY_HIDDEN_CYCLES   = "pt_hidden_cycles_v1";   // array of period-start ISOs that are hidden from stats
 
 // iPhone/iPad Safari can't reliably auto-write a file outside the browser.
 // We therefore show a gentle reminder if the last *manual* export is too old.
@@ -140,6 +143,38 @@ function saveBleedDays(days){
       window.LunacyBackup.markDirty("bleed");
     }
   }catch(e){}
+}
+
+// ---------- hidden cycles ----------
+// Hidden cycles are excluded from all statistics and forecasts,
+// but remain visible (grayed out) in lists and are still editable/deletable.
+// Cycle length is ALWAYS computed as difference between two actual period starts —
+// no automatic length filtering. Only the hidden flag excludes a cycle.
+function loadHiddenCycles(){
+  const arr = loadJSON(KEY_HIDDEN_CYCLES, []);
+  return new Set(arr.filter(Boolean));
+}
+function saveHiddenCycles(set){
+  saveJSON(KEY_HIDDEN_CYCLES, [...set]);
+  try{
+    if (window.LunacyBackup && typeof window.LunacyBackup.markDirty === "function"){
+      window.LunacyBackup.markDirty("hidden");
+    }
+  }catch(e){}
+}
+function isHiddenCycle(startISO){
+  return loadHiddenCycles().has(String(startISO));
+}
+function toggleHiddenCycle(startISO){
+  const hidden = loadHiddenCycles();
+  if (hidden.has(String(startISO))) hidden.delete(String(startISO));
+  else hidden.add(String(startISO));
+  saveHiddenCycles(hidden);
+}
+// Returns only periods whose start date is NOT in the hidden set.
+function filterVisiblePeriods(periods){
+  const hidden = loadHiddenCycles();
+  return (periods || []).filter(p => !hidden.has(iso(p.start)));
 }
 
 function addBleedDay(dateISO){
@@ -278,7 +313,34 @@ function computePersonalOvulationOffset(periodsNewestFirst, notesByDate, fallbac
   return Math.round(offsets.reduce((s,x)=>s+x,0)/offsets.length);
 }
 
-function buildCalendarModel(periodsNewestFirst, forecastCycles=12){
+/**
+ * Correctly computes the average cycle length from ALL periods (incl. hidden).
+ * Key: we measure the gap between each consecutive pair using their REAL adjacent starts,
+ * but only include a gap in the average if the EARLIER period is NOT hidden.
+ * This prevents two problems:
+ *   (a) super-cycle: skipping hidden periods when using visible-only periods creates
+ *       artificially long gaps that inflate the average.
+ *   (b) hidden cycles still polluting the average via their own (potentially atypical) length.
+ */
+function computeAvgCycleLen(allPeriodsSorted) {
+  // allPeriodsSorted: array of periods sorted old→new (ascending by start)
+  const settings = loadSettings();
+  const hiddenSet = loadHiddenCycles();
+  const diffs = [];
+  for (let i = 0; i < allPeriodsSorted.length - 1; i++) {
+    const cur = allPeriodsSorted[i];
+    const curISO = iso(cur.start);
+    // Skip: don't count this gap if the current (earlier) period is hidden
+    if (hiddenSet.has(curISO)) continue;
+    const d = diffDays(cur.start, allPeriodsSorted[i + 1].start);
+    if (d > 0) diffs.push(d);
+  }
+  return diffs.length
+    ? Math.round(diffs.reduce((s, x) => s + x, 0) / diffs.length)
+    : settings.cycleLen;
+}
+
+function buildCalendarModel(periodsNewestFirst, forecastCycles=12, avgCycleOverride=null){
   const settings = loadSettings();
   if (!periodsNewestFirst.length){
     return { actualPeriods: [], forecastPeriods: [], fertileRanges: [], ovulationDaysISO: [], cycleLen: settings.cycleLen, periodLen: settings.periodLen, personalOvuOffset: (settings.ovuDay?settings.ovuDay-1:(settings.cycleLen-14)), latestStart: null };
@@ -287,14 +349,20 @@ function buildCalendarModel(periodsNewestFirst, forecastCycles=12){
   const latestStart = periodsNewestFirst[0].start;
   const notesByDate = loadNotesByDate();
 
-  // compute cycle length from last 12 period starts if possible
-  const starts = periodsNewestFirst.slice(0, 13).map(p=>p.start).sort((a,b)=>a-b);
-  const diffs = [];
-  for (let i=1;i<starts.length;i++){
-    const d = diffDays(starts[i-1], starts[i]);
-    if (d>=15 && d<=60) diffs.push(d);
+  // Use pre-computed correct average if provided, otherwise fall back to simple diff of passed-in periods
+  // (the caller should always pass avgCycleOverride from computeAvgCycleLen(allPeriods) for correctness)
+  let cycleLen;
+  if (avgCycleOverride !== null && avgCycleOverride > 0) {
+    cycleLen = avgCycleOverride;
+  } else {
+    const starts = periodsNewestFirst.slice(0, 13).map(p=>p.start).sort((a,b)=>a-b);
+    const diffs = [];
+    for (let i=1;i<starts.length;i++){
+      const d = diffDays(starts[i-1], starts[i]);
+      if (d > 0) diffs.push(d);
+    }
+    cycleLen = diffs.length ? Math.round(diffs.reduce((s,x)=>s+x,0)/diffs.length) : settings.cycleLen;
   }
-  const cycleLen = diffs.length ? Math.round(diffs.reduce((s,x)=>s+x,0)/diffs.length) : settings.cycleLen;
   const periodLen = settings.periodLen; // baseline; actual comes from bleed groups
 
   const fallbackOffset = settings.ovuDay ? (settings.ovuDay - 1) : (cycleLen - 14);
@@ -346,7 +414,7 @@ if (activeMobile) activeMobile.classList.add("active");
   if (name==="hormones") rerenderHormones();
   if (name==="stats") rerenderStats();
   if (name==="today") rerenderToday();
-  if (name==="settings") renderSettingsForm();
+  if (name==="settings"){ renderSettingsForm(); if (window.Meds && typeof Meds.renderSettingsUI==="function") Meds.renderSettingsUI(); }
 }
 
 // ---------- TODAY ----------
@@ -440,43 +508,101 @@ function rerenderToday(){
     return;
   }
 
-  list.innerHTML = periods.slice(0, 12).map((p) => {
+  const hiddenSet = loadHiddenCycles();
+
+  list.innerHTML = periods.slice(0, 24).map((p) => {
     const startISO = iso(p.start);
     const endISO = iso(p.end);
     const len = diffDays(p.start, p.end) + 1;
+    const hidden = hiddenSet.has(startISO);
     return `
-      <div class="row">
-        <div style="flex:1;">
-          <div class="strong">${formatDateDE(p.start)} – ${formatDateDE(p.end)}</div>
-          <div class="muted" style="font-size:12px;margin-top:2px;">Dauer: ${len} Tage</div>
+      <div class="periodRow${hidden ? " periodRow--hidden" : ""}" data-start="${startISO}" data-end="${endISO}">
+        <div class="periodRowMain">
+          <div class="periodRowDate">${formatDateDE(p.start)} – ${formatDateDE(p.end)}</div>
+          <div class="periodRowMeta">${len} Tage${hidden ? ' · <span class="periodRowHiddenTag">ausgeblendet</span>' : ''}</div>
         </div>
-        <div class="rowBtns" style="justify-content:flex-end;">
-          <button class="btn" type="button" data-edit-period="${startISO}|${endISO}">Bearbeiten</button>
-          <button class="btn danger" type="button" data-del-period="${startISO}|${endISO}">Löschen</button>
-        </div>
+        <button class="btn periodMenuBtn" type="button"
+          data-menu-start="${startISO}"
+          data-menu-end="${endISO}"
+          data-menu-hidden="${hidden ? '1' : '0'}"
+          aria-label="Optionen"
+          aria-haspopup="true"
+          aria-expanded="false">⋮</button>
       </div>
     `;
   }).join("");
 
-  // bind buttons
-  list.querySelectorAll("[data-edit-period]").forEach((b)=>{
-    b.addEventListener("click", ()=>{
-      const raw = b.getAttribute("data-edit-period") || "";
-      const [s,e] = raw.split("|");
-      if (s && e) openEditPeriod(s,e);
+  // ⋮ menu: open/close a popup below the button
+  list.querySelectorAll(".periodMenuBtn").forEach((btn) => {
+    btn.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      closeAllPeriodMenus();
+
+      const startISO = btn.getAttribute("data-menu-start");
+      const endISO   = btn.getAttribute("data-menu-end");
+      const hidden   = btn.getAttribute("data-menu-hidden") === "1";
+
+      const menu = document.createElement("div");
+      menu.className = "periodDropdown";
+      menu.setAttribute("role", "menu");
+
+      const actions = [
+        {
+          label: hidden ? "Einblenden" : "Ausblenden",
+          cls: "",
+          fn: () => {
+            closeAllPeriodMenus();
+            toggleHiddenCycle(startISO);
+            rerenderToday(); rerenderCalendar(); rerenderStats();
+          }
+        },
+        {
+          label: "Bearbeiten",
+          cls: "",
+          fn: () => {
+            closeAllPeriodMenus();
+            openEditPeriod(startISO, endISO);
+          }
+        },
+        {
+          label: "Löschen",
+          cls: "danger",
+          fn: () => {
+            closeAllPeriodMenus();
+            if (!confirm(`Periode ${formatDateDE(startISO)} – ${formatDateDE(endISO)} wirklich löschen?`)) return;
+            removeBleedRange(startISO, endISO);
+            if (editingPeriod && editingPeriod.startISO === startISO && editingPeriod.endISO === endISO) closeEditPeriod();
+            rerenderToday(); rerenderCalendar(); rerenderStats();
+          }
+        },
+      ];
+
+      menu.innerHTML = actions.map((a, i) =>
+        `<button class="periodDropdownItem${a.cls ? " "+a.cls : ""}" type="button" data-action-idx="${i}" role="menuitem">${escapeHtml(a.label)}</button>`
+      ).join("");
+
+      // position relative to the ⋮ button
+      btn.setAttribute("aria-expanded", "true");
+      btn.parentElement.style.position = "relative";
+      btn.parentElement.appendChild(menu);
+
+      // bind action clicks
+      menu.querySelectorAll("[data-action-idx]").forEach((item) => {
+        const idx = Number(item.getAttribute("data-action-idx"));
+        item.addEventListener("click", (e) => { e.stopPropagation(); actions[idx].fn(); });
+      });
     });
   });
 
-  list.querySelectorAll("[data-del-period]").forEach((b)=>{
-    b.addEventListener("click", ()=>{
-      const raw = b.getAttribute("data-del-period") || "";
-      const [s,e] = raw.split("|");
-      if (!s || !e) return;
-      if (!confirm(`Periode ${formatDateDE(s)} – ${formatDateDE(e)} wirklich löschen?`)) return;
-      removeBleedRange(s,e);
-      if (editingPeriod && editingPeriod.startISO===s && editingPeriod.endISO===e) closeEditPeriod();
-      rerenderToday(); rerenderCalendar(); rerenderStats();
-    });
+  // close menus on outside click
+  document.addEventListener("click", closeAllPeriodMenus, { once: true, capture: true });
+}
+
+function closeAllPeriodMenus(){
+  document.querySelectorAll(".periodDropdown").forEach(m => {
+    const btn = m.closest(".periodRow")?.querySelector(".periodMenuBtn");
+    if (btn) btn.setAttribute("aria-expanded", "false");
+    m.remove();
   });
 }
 
@@ -535,8 +661,17 @@ function renderNoteIcon(btn){
 
 function rerenderCalendar(){
   const days = loadBleedDays();
-  const periods = derivePeriodsFromBleed(days);
-  const model = buildCalendarModel(periods, 12);
+  const allPeriods = derivePeriodsFromBleed(days);
+  const visiblePeriods = filterVisiblePeriods(allPeriods);
+  // Compute avg from ALL periods (skipping hidden diffs), so no super-cycles inflate the forecast
+  const allSorted = allPeriods.slice().sort((a,b)=>a.start-b.start);
+  const avgCycleLen = computeAvgCycleLen(allSorted);
+  const model = buildCalendarModel(visiblePeriods, 12, avgCycleLen);
+  // For marking actual bleed days in the calendar, use all periods (hidden ones are real data)
+  const allActualRanges = allPeriods.map(p => ({ start: p.start, end: p.end }));
+  const hiddenActualRanges = allPeriods
+    .filter(p => isHiddenCycle(iso(p.start)))
+    .map(p => ({ start: p.start, end: p.end }));
 
   document.getElementById("monthTitle").textContent = fmtMonth(viewDate);
   const todayBtn = document.getElementById("monthTodayBtn");
@@ -593,10 +728,15 @@ if (dateISO === todayISO){
       btn.appendChild(s);
     }
 
-    if (periods.length){
-      const isActual = inAny(model.actualPeriods, dd);
-      if (isActual) btn.classList.add("bg-period");
-      if (!isActual && inAny(model.forecastPeriods, dd)) btn.classList.add("bg-predicted");
+    if (allPeriods.length){
+      const isActualVisible = inAny(model.actualPeriods, dd);
+      const isActualHidden  = !isActualVisible && inAny(hiddenActualRanges, dd);
+      if (isActualVisible)  btn.classList.add("bg-period");
+      else if (isActualHidden) {
+        btn.classList.add("bg-period");
+        btn.style.opacity = "0.45"; // visually dim hidden-cycle days in calendar
+      }
+      else if (inAny(model.forecastPeriods, dd)) btn.classList.add("bg-predicted");
       if (inAny(model.fertileRanges, dd)) btn.classList.add("bg-fertile");
       if (model.ovulationDaysISO.includes(dateISO)) btn.classList.add("bg-ovu");
     }
@@ -607,10 +747,13 @@ if (dateISO === todayISO){
     cal.appendChild(btn);
   }
 
-  if (!periods.length){
+  if (!allPeriods.length){
     summary.innerHTML = '<p class="muted">Noch keine Blutungstage. Nutze „Heute“ oder trage rückwirkend ein.</p>';
     return;
   }
+
+  // Forecast data uses visible periods; hidden cycles excluded from predictions
+  const periods = visiblePeriods.length ? visiblePeriods : allPeriods;
 
   const nextStarts = model.forecastPeriods.map(r=>formatDateDE(r.start)).slice(0,6);
   const settings = loadSettings();
@@ -728,7 +871,11 @@ if (dateISO === todayISO){
       ` : ""}
     </div>
   `;
+
+  // Medi-Checkliste (Kalender-Kachel)
+  try{ if (window.Meds && typeof Meds.renderCalendarTile==='function') Meds.renderCalendarTile(); }catch(e){ console.warn('Meds.renderCalendarTile failed', e); }
 }
+
 
 // ---------- HORMONE CURVE (reference model; no measurements) ----------
 function gaussian(x, mu, sigma){
@@ -804,7 +951,7 @@ function rerenderHormones(){
   const today = new Date();
   const todayISO = iso(today);
   const cycleStartISO = iso(ctx0.cycleStart);
-  const dayInCycle = clamp(diffDays(ctx0.cycleStart, today) + 1, 1, ctx0.model.cycleLen);
+  const dayInCycle = Math.max(1, diffDays(ctx0.cycleStart, today) + 1); // no upper clamp — long cycles run freely
   const ovDay = diffDays(ctx0.cycleStart, ctx0.ovuDate) + 1;
 
   if (labelEl) labelEl.textContent = `${formatDateDE(ctx0.cycleStart)} – (≈) ${formatDateDE(ctx0.nextStart)}`;
@@ -948,132 +1095,127 @@ function rerenderHormones(){
 
 // ---------- sharing ----------
 async function shareSummaryAsImage(){
-  const summaryEl = document.getElementById("summary");
-  if (!summaryEl) throw new Error("Zusammenfassung nicht gefunden.");
-  if (!summaryEl.innerText.trim()) throw new Error("Noch keine Zusammenfassung zum Teilen.");
+  const h2c = (window.html2canvas || window.html2Canvas);
+  if (typeof h2c !== "function") throw new Error("html2canvas fehlt.");
+
+  // ---- gather data fresh ----
+  const days = loadBleedDays();
+  const allPeriods = derivePeriodsFromBleed(days);
+  const visiblePeriods = filterVisiblePeriods(allPeriods);
+  if (!visiblePeriods.length && !allPeriods.length)
+    throw new Error("Noch keine Blutungstage eingetragen.");
+
+  const allSorted = allPeriods.slice().sort((a,b)=>a.start-b.start);
+  const avgCycleLen = computeAvgCycleLen(allSorted);
+  const model = buildCalendarModel(
+    visiblePeriods.length ? visiblePeriods : allPeriods,
+    8, avgCycleLen
+  );
+  const settings = loadSettings();
+
+  const nextPeriods  = model.forecastPeriods.slice(0, 6).map(r => formatDateDE(r.start));
+  const nextOvISOs   = model.ovulationDaysISO.slice(0, 6);
+  const nextOvDates  = nextOvISOs.map(d => formatDateDE(d));
+
+  // TTC / Kinder-ETs
+  let ttcHTML = "";
+  if (settings.ttc) {
+    const rows = nextOvISOs.map((dISO) => {
+      const ovuDate = parseISO(dISO);
+      const et = computeETFromOvulation(ovuDate);
+      const w = getWesternSign(et);
+      const cz = getChineseZodiac(et);
+      return `<div style="padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.08);display:flex;gap:10px;align-items:center;">
+        <span style="opacity:.65;font-size:12px;flex-shrink:0;">ES ${formatDateDE(ovuDate)}</span>
+        <span>→ ET ${formatDateDE(et)}</span>
+        <span style="opacity:.65;font-size:12px;">${escapeHtml(w.name)}</span>
+        ${typeof getChineseZodiac === "function" ? `<span style="opacity:.55;font-size:12px;">${escapeHtml(cz.animal)}</span>` : ""}
+      </div>`;
+    }).join("");
+    ttcHTML = `
+      <div style="margin-top:14px;">
+        <div style="font-size:12px;opacity:.6;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em;">Kinder-ETs (≈)</div>
+        ${rows}
+      </div>`;
+  }
 
   const month = document.getElementById("monthTitle")?.innerText?.trim() || "";
   const title = month ? `Lunacy – ${month}` : "Lunacy";
 
-  const h2c = (window.html2canvas || window.html2Canvas);
-  if (typeof h2c !== "function"){
-    throw new Error("html2canvas fehlt.");
-  }
-
-  /* -------------------------------
-     SHARE WRAP (Cosmic Card)
-  -------------------------------- */
+  // ---- build share card DOM ----
   const wrap = document.createElement("div");
-  wrap.classList.add("shareDesktop");
-  wrap.setAttribute("aria-hidden","true");
-  wrap.style.position = "fixed";
-  wrap.style.left = "-99999px";
-  wrap.style.top = "0";
-  wrap.style.width = "980px";
-  wrap.style.padding = "32px";
-  wrap.style.borderRadius = "28px";
-  wrap.style.color = "#fbf7ff";
-  wrap.style.fontFamily = "ui-sans-serif, system-ui";
-  wrap.style.background =
-    "radial-gradient(900px 500px at 20% -10%, rgba(201,166,255,0.25), transparent 60%),"+
-    "radial-gradient(700px 500px at 90% 0%, rgba(247,217,120,0.18), transparent 55%),"+
-    "linear-gradient(180deg, #07051a, #140f33)";
+  wrap.setAttribute("aria-hidden", "true");
+  Object.assign(wrap.style, {
+    position: "fixed", left: "-99999px", top: "0",
+    width: "880px", padding: "32px",
+    borderRadius: "28px",
+    color: "#fbf7ff",
+    fontFamily: "ui-sans-serif, system-ui, sans-serif",
+    background:
+      "radial-gradient(900px 500px at 20% -10%, rgba(201,166,255,0.25), transparent 60%)," +
+      "radial-gradient(700px 500px at 90% 0%, rgba(247,217,120,0.18), transparent 55%)," +
+      "linear-gradient(180deg, #07051a, #140f33)",
+  });
 
-  /* -------------------------------
-     STAR CANVAS
-  -------------------------------- */
+  // star canvas
   const stars = document.createElement("canvas");
-  stars.width = 980;
-  stars.height = 520;
-  stars.style.position = "absolute";
-  stars.style.inset = "0";
-  stars.style.zIndex = "0";
-
+  stars.width = 880; stars.height = 520;
+  Object.assign(stars.style, { position:"absolute", inset:"0", zIndex:"0" });
   const sctx = stars.getContext("2d");
   sctx.fillStyle = "transparent";
-  sctx.fillRect(0,0,stars.width,stars.height);
-
-  for (let i=0;i<140;i++){
-    const x = Math.random()*stars.width;
-    const y = Math.random()*stars.height;
-    const r = Math.random()*1.4 + 0.2;
-    const a = Math.random()*0.8 + 0.2;
-    sctx.beginPath();
-    sctx.arc(x,y,r,0,Math.PI*2);
-    sctx.fillStyle = `rgba(255,255,255,${a})`;
-    sctx.fill();
+  sctx.fillRect(0,0,880,520);
+  for (let i=0;i<120;i++){
+    const x=Math.random()*880, y=Math.random()*520, r=Math.random()*1.3+0.2, a=Math.random()*0.7+0.2;
+    sctx.beginPath(); sctx.arc(x,y,r,0,Math.PI*2);
+    sctx.fillStyle=`rgba(255,255,255,${a})`; sctx.fill();
   }
-
   wrap.appendChild(stars);
 
-  /* -------------------------------
-     HEADER (Logo + Title)
-  -------------------------------- */
+  // header
   const head = document.createElement("div");
-  head.style.display = "flex";
-  head.style.alignItems = "center";
-  head.style.gap = "16px";
-  head.style.marginBottom = "20px";
-  head.style.position = "relative";
-  head.style.zIndex = "1";
-
+  Object.assign(head.style, { display:"flex", alignItems:"center", gap:"14px", marginBottom:"18px", position:"relative", zIndex:"1" });
   const img = document.createElement("img");
-  img.src = "logo.png";
-  img.alt = "Lunacy";
-  img.style.width = "56px";
-  img.style.height = "56px";
-  img.style.borderRadius = "18px";
-  img.style.border = "1px solid rgba(255,255,255,0.25)";
-  img.style.boxShadow = "0 0 24px rgba(247,217,120,0.35)";
-
+  img.src="logo.png"; img.alt="Lunacy";
+  Object.assign(img.style, { width:"48px", height:"48px", borderRadius:"15px", border:"1px solid rgba(255,255,255,0.2)", boxShadow:"0 0 20px rgba(247,217,120,0.3)" });
   const tbox = document.createElement("div");
-  const t1 = document.createElement("div");
-  t1.textContent = "Lunacy";
-  t1.style.fontWeight = "900";
-  t1.style.fontSize = "22px";
-  t1.style.color = "#f7d978";
-
-  const t2 = document.createElement("div");
-  t2.textContent = month || "";
-  t2.style.opacity = "0.8";
-  t2.style.fontSize = "14px";
-
-  tbox.appendChild(t1);
-  tbox.appendChild(t2);
-
-  head.appendChild(img);
-  head.appendChild(tbox);
-
-  /* -------------------------------
-     CONTENT CARD
-  -------------------------------- */
-  const card = document.createElement("div");
-  card.style.position = "relative";
-  card.style.zIndex = "1";
-  card.style.background = "rgba(24,16,52,0.88)";
-  card.style.border = "1px solid rgba(255,255,255,0.14)";
-  card.style.borderRadius = "22px";
-  card.style.padding = "18px";
-  card.style.boxShadow = "0 20px 60px rgba(0,0,0,0.45)";
-
-  const cloned = summaryEl.cloneNode(true);
-  cloned.style.margin = "0";
-
-  card.appendChild(cloned);
-
+  tbox.innerHTML = `<div style="font-weight:900;font-size:20px;color:#f7d978;">Lunacy</div><div style="opacity:.7;font-size:13px;">${escapeHtml(month)}</div>`;
+  head.append(img, tbox);
   wrap.appendChild(head);
+
+  // main card
+  const card = document.createElement("div");
+  Object.assign(card.style, {
+    position:"relative", zIndex:"1",
+    background:"rgba(24,16,52,0.88)",
+    border:"1px solid rgba(255,255,255,0.13)",
+    borderRadius:"20px", padding:"20px",
+    boxShadow:"0 20px 60px rgba(0,0,0,0.45)",
+    fontSize:"14px", lineHeight:"1.5",
+  });
+
+  function section(label, items) {
+    return `
+      <div style="margin-bottom:14px;">
+        <div style="font-size:11px;opacity:.55;text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px;">${label}</div>
+        <div style="display:flex;flex-wrap:wrap;gap:7px;">
+          ${items.map(x=>`<span style="background:rgba(201,166,255,0.18);border:1px solid rgba(201,166,255,0.3);border-radius:20px;padding:4px 12px;font-size:13px;">${escapeHtml(x)}</span>`).join("")}
+        </div>
+      </div>`;
+  }
+
+  card.innerHTML =
+    section("Nächste 6 Perioden (≈)", nextPeriods) +
+    section("Nächste 6 Eisprünge (≈)", nextOvDates) +
+    ttcHTML;
+
   wrap.appendChild(card);
   document.body.appendChild(wrap);
 
-  /* -------------------------------
-     RENDER IMAGE
-  -------------------------------- */
   const canvas = await h2c(wrap, {
     backgroundColor: null,
     scale: Math.min(2, window.devicePixelRatio || 1),
     useCORS: true,
   });
-
   document.body.removeChild(wrap);
 
   const blob = await new Promise(res => canvas.toBlob(res, "image/png", 0.92));
@@ -1089,13 +1231,9 @@ async function shareSummaryAsImage(){
 
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  URL.revokeObjectURL(url);
-  document.body.removeChild(a);
-
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click();
+  URL.revokeObjectURL(url); document.body.removeChild(a);
   alert("Dein Browser unterstützt Teilen nicht direkt – Bild wurde heruntergeladen.");
 }
 
@@ -1139,41 +1277,55 @@ function computeOvulationForCycle(periodStart, nextStart, model, notesByDate){
 // expose for stats modules
 window.computeOvulationForCycle = computeOvulationForCycle;
 
+// expose hidden-cycle helpers for other modules (tips.js, warnings.js, etc.)
+window.loadHiddenCycles     = loadHiddenCycles;
+window.saveHiddenCycles     = saveHiddenCycles;
+window.isHiddenCycle        = isHiddenCycle;
+window.toggleHiddenCycle    = toggleHiddenCycle;
+window.filterVisiblePeriods = filterVisiblePeriods;
+
 function rerenderStats(){
   const days = loadBleedDays();
-  const periods = derivePeriodsFromBleed(days);
+  const allPeriods = derivePeriodsFromBleed(days);
+  const visiblePeriods = filterVisiblePeriods(allPeriods);
   const settings = loadSettings();
 
   const statsSummary = document.getElementById("statsSummary");
   const last12 = document.getElementById("last12");
 
-  if (!periods.length){
+  if (!allPeriods.length){
     statsSummary.innerHTML = '<p class="muted">Keine Daten.</p>';
     last12.innerHTML = '<p class="muted">Keine Zyklen vorhanden.</p>';
     return;
   }
 
-  // cycle length average from last starts
-  const starts = periods.slice(0, 13).map(p=>p.start).sort((a,b)=>a-b);
-  const diffs=[];
-  for (let i=1;i<starts.length;i++){
-    const d = diffDays(starts[i-1], starts[i]);
-    if (d>=15 && d<=60) diffs.push(d);
-  }
-  const avgCycle = diffs.length ? Math.round(diffs.reduce((s,x)=>s+x,0)/diffs.length) : settings.cycleLen;
+  // All statistics are computed from VISIBLE periods only.
+  // Hidden periods are shown in the table below (grayed out) but never counted.
+  const periods = visiblePeriods.length ? visiblePeriods : allPeriods;
 
-  // period length average from bleed-derived periods
+  // Compute the TRUE average cycle length from ALL periods (real consecutive starts,
+  // skip hidden cycles). This prevents super-cycles from inflating the average.
+  const allSorted = allPeriods.slice().sort((a,b)=>a.start-b.start);
+  const avgCycle = computeAvgCycleLen(allSorted);
+
+  // period length average from bleed-derived visible periods
   const lens = periods.slice(0,12).map(p => diffDays(p.start, p.end)+1);
   const avgPeriod = Math.round(lens.reduce((s,x)=>s+x,0)/lens.length);
 
-  // simple variability as std dev of diffs
-  const mean = diffs.length ? (diffs.reduce((s,x)=>s+x,0)/diffs.length) : avgCycle;
-  const variance = diffs.length ? diffs.reduce((s,x)=>s+(x-mean)*(x-mean),0)/diffs.length : 0;
+  // variability from visible diffs only
+  const visibleSorted = periods.slice().sort((a,b)=>a.start-b.start);
+  const vdiffs = [];
+  for (let i=1;i<visibleSorted.length && vdiffs.length<12;i++){
+    const d = diffDays(visibleSorted[i-1].start, visibleSorted[i].start);
+    if (d>0) vdiffs.push(d);
+  }
+  const mean = vdiffs.length ? (vdiffs.reduce((s,x)=>s+x,0)/vdiffs.length) : avgCycle;
+  const variance = vdiffs.length ? vdiffs.reduce((s,x)=>s+(x-mean)*(x-mean),0)/vdiffs.length : 0;
   const stdCycle = Math.sqrt(Math.max(0, variance));
   const variability = stdCycle < 1.5 ? "sehr stabil" : stdCycle < 3.5 ? "relativ stabil" : stdCycle < 6 ? "wechselhaft" : "stark wechselhaft";
 
-  // build model for ovulation offset
-  const model = buildCalendarModel(periods, 12);
+  // build model using correct avgCycle so all views are consistent
+  const model = buildCalendarModel(periods, 12, avgCycle);
   const notesByDate = loadNotesByDate();
 
   
@@ -1219,7 +1371,9 @@ function rerenderStats(){
     try{
       window.renderMittelschmerzStats({
         targetId: "statsMittelschmerz",
-        periods,
+        periods,            // visible only (for which cycles to include in stats)
+        allPeriods,         // ALL periods — needed for real consecutive-start boundaries
+        hiddenCycles: [...loadHiddenCycles()],
         model,
         notesByDate,
         avgCycle,
@@ -1242,7 +1396,11 @@ function rerenderStats(){
   if (typeof window.renderStatsCharts === "function"){
     try{
       window.renderStatsCharts({
-        periods,
+        // Pass ALL periods so the chart can use real consecutive starts to compute
+        // cycle lengths; the hidden set is passed separately so the module can skip
+        // hidden cycles without measuring artificially long "super-cycle" gaps.
+        periods: allPeriods,
+        hiddenCycles: [...loadHiddenCycles()],
         model,
         notesByDate,
         avgCycle,
@@ -1260,22 +1418,28 @@ function rerenderStats(){
       console.warn("renderStatsCharts failed", e);
     }
   }
-// table last 12 cycles: start, bleed length, cycle length, ovulation day (ZT) + date
-  const cycles = periods.slice(0, 12).sort((a,b)=>a.start-b.start); // old->new
+// table: show all cycles (including hidden ones, grayed out). Stats are already computed from visible only.
+  // We iterate all periods for full picture, but mark hidden ones clearly.
+  const hiddenSet = loadHiddenCycles();
+  const allCyclesSorted = allPeriods.slice(0, 18).sort((a,b)=>a.start-b.start); // old->new
   const rows = [];
-  for (let i=0;i<cycles.length;i++){
-    const cur = cycles[i];
-    const next = (i+1 < cycles.length) ? cycles[i+1] : { start: addDays(cur.start, avgCycle) };
+  for (let i=0;i<allCyclesSorted.length;i++){
+    const cur = allCyclesSorted[i];
+    const next = (i+1 < allCyclesSorted.length) ? allCyclesSorted[i+1] : { start: addDays(cur.start, avgCycle) };
+    const startISO = iso(cur.start);
+    const hidden = hiddenSet.has(startISO);
 
     const cycleLen = diffDays(cur.start, next.start);
     const bleedLen = diffDays(cur.start, cur.end) + 1;
 
     const ov = computeOvulationForCycle(cur.start, next.start, model, notesByDate);
     rows.push({
+      startISO,
       start: formatDateDE(cur.start),
       bleedLen: String(bleedLen),
-      cycleLen: String((cycleLen>=15 && cycleLen<=60)?cycleLen:"–"),
+      cycleLen: String(cycleLen > 0 ? cycleLen : "–"),
       ov: `ZT ${ov.zt} (${formatDateDE(ov.ovuDate)})${ov.reasonText ? " • "+escapeHtml(ov.reasonText) : ""}`,
+      hidden,
     });
   }
 
@@ -1286,19 +1450,22 @@ function rerenderStats(){
     <div class="th">Eisprung (Zyklustag)</div>
   `;
 
+  const dimStyle = 'style="opacity:0.38;"';
+  const hiddenLabel = ' <span style="font-size:11px;opacity:0.7;">[ausgeblendet]</span>';
+
   const desktopCells = rows.map(r=>`
-    <div class="td">${r.start}</div>
-    <div class="td">${r.bleedLen}</div>
-    <div class="td">${r.cycleLen}</div>
-    <div class="td">${r.ov}</div>
+    <div class="td" ${r.hidden ? dimStyle : ""}>${r.start}${r.hidden ? hiddenLabel : ""}</div>
+    <div class="td" ${r.hidden ? dimStyle : ""}>${r.bleedLen}</div>
+    <div class="td" ${r.hidden ? dimStyle : ""}>${r.cycleLen}</div>
+    <div class="td" ${r.hidden ? dimStyle : ""}>${r.hidden ? "–" : r.ov}</div>
   `).join("");
 
   const mobileCards = rows.map(r=>`
-    <div class="rowCard">
-      <div class="kv"><div class="k">Start</div><div class="v">${r.start}</div></div>
+    <div class="rowCard" ${r.hidden ? dimStyle : ""}>
+      <div class="kv"><div class="k">Start</div><div class="v">${r.start}${r.hidden ? hiddenLabel : ""}</div></div>
       <div class="kv"><div class="k">Periode</div><div class="v">${r.bleedLen} Tage</div></div>
       <div class="kv"><div class="k">Zyklus</div><div class="v">${r.cycleLen}</div></div>
-      <div class="kv"><div class="k">Eisprung</div><div class="v">${r.ov}</div></div>
+      <div class="kv"><div class="k">Eisprung</div><div class="v">${r.hidden ? "–" : r.ov}</div></div>
     </div>
   `).join("");
 
@@ -1589,6 +1756,22 @@ function exportAllToCSV(){
     }
   }
 
+
+// Medi-Checkliste (optional)
+const medSettingsRaw = localStorage.getItem(KEY_MED_SETTINGS) || "";
+const medLogRaw = localStorage.getItem(KEY_MED_LOG) || "";
+if (medSettingsRaw){
+  rows.push(["MED_SETTINGS","","","","","","", medSettingsRaw, "", "", "", "", "", "", ""]);
+}
+if (medLogRaw){
+  rows.push(["MED_LOG","","","","","","", medLogRaw, "", "", "", "", "", "", ""]);
+}
+
+// Hidden cycles
+for (const startISO of loadHiddenCycles()){
+  rows.push(["HIDDEN_CYCLE", startISO, "", "", "", "", "", "", "", "", "", "", "", "", ""]);
+}
+
   const csv = toCSV(rows);
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
   const a = document.createElement("a");
@@ -1630,6 +1813,8 @@ async function importAllFromCSV(file, replaceExisting=false){
     localStorage.removeItem(KEY_BLEED);
     localStorage.removeItem(KEY_NOTES);
     localStorage.removeItem(KEY_SETTINGS);
+    localStorage.removeItem(KEY_MED_SETTINGS);
+    localStorage.removeItem(KEY_MED_LOG);
   }
 
   // existing
@@ -1641,6 +1826,32 @@ async function importAllFromCSV(file, replaceExisting=false){
     const row = rows[r];
     const rt = String(row[ri.record_type]||"").trim();
     if (!rt) continue;
+
+
+if (rt === "MED_SETTINGS"){
+      if (ri.text >= 0){
+        const raw = String(row[ri.text]||"");
+        if (raw) localStorage.setItem(KEY_MED_SETTINGS, raw);
+      }
+      continue;
+    }
+if (rt === "MED_LOG"){
+      if (ri.text >= 0){
+        const raw = String(row[ri.text]||"");
+        if (raw) localStorage.setItem(KEY_MED_LOG, raw);
+      }
+      continue;
+    }
+
+    if (rt === "HIDDEN_CYCLE"){
+      const d = String(row[ri.date]||"").trim();
+      if (d){
+        const hidden = loadHiddenCycles();
+        hidden.add(d);
+        saveHiddenCycles(hidden);
+      }
+      continue;
+    }
 
     if (rt === "SETTINGS"){
       const cycleLen = clamp(Number(row[ri.cycleLen]||28), 15, 60);
@@ -1958,6 +2169,7 @@ function init(){
     localStorage.removeItem(KEY_NOTES);
     localStorage.removeItem(KEY_SETTINGS);
     localStorage.removeItem(KEY_LAST_CSV_BACKUP);
+    localStorage.removeItem(KEY_HIDDEN_CYCLES);
     rerenderToday(); rerenderCalendar(); rerenderStats(); rerenderHormones();
   });
 

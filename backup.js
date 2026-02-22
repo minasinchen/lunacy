@@ -15,6 +15,8 @@
   const K_NOTES = "pt_notes_v1";
   const K_SETTINGS = "pt_settings_v1";
 
+const K_MED_SETTINGS = "pt_med_settings_v1";
+const K_MED_LOG = "pt_med_log_v1";
   const K_ENABLED = "lunacy_backup_enabled_v1";
   const K_LAST_WRITE = "lunacy_backup_last_write_ms_v1";
   const K_LAST_HASH = "lunacy_backup_last_hash_v1";
@@ -33,6 +35,12 @@
   let nudgeTimer = null;
 
   function $(id){ return document.getElementById(id); }
+
+  function supportsDirectoryPicker(){
+    // showDirectoryPicker is NOT available on Android Chrome/Samsung Internet —
+    // only on desktop Chrome/Edge. Don't confuse with showSaveFilePicker which IS on Android.
+    return typeof window.showDirectoryPicker === "function";
+  }
 
   function supportsFileSystemAccess(){
     return !!(window.showDirectoryPicker || window.showSaveFilePicker);
@@ -160,6 +168,9 @@
     const bleedDays = readStorage(K_BLEED, []);
     const notesByDate = readStorage(K_NOTES, {});
     const settings = readStorage(K_SETTINGS, {});
+    const medSettings = readStorage(K_MED_SETTINGS, {});
+    const medLog = readStorage(K_MED_LOG, { events:[] });
+    const hiddenCycles = readStorage("pt_hidden_cycles_v1", []);
 
     return {
       schema: "lunacy-backup-v1",
@@ -168,6 +179,9 @@
         bleedDays,
         notesByDate,
         settings,
+        medSettings,
+        medLog,
+        hiddenCycles,
       }
     };
   }
@@ -197,8 +211,8 @@
   async function writeBackupToFile(opts){
     const manual = !!opts?.manual;
 
-    if (!supportsFileSystemAccess()){
-      setStatus("Status: Dieser Browser unterstützt kein automatisches Überschreiben. Nutze ‚Backup jetzt schreiben‘ (Download) oder wechsle zu Chrome/Edge.");
+    if (!supportsDirectoryPicker()){
+      setStatus("Status: Dieser Browser unterstützt kein automatisches Überschreiben. Nutze ‚Backup jetzt schreiben‘ (Download) oder wechsle zu Chrome/Edge Desktop.");
       return { ok:false, reason:"no_fs_api" };
     }
 
@@ -282,10 +296,10 @@
       pendingTimer = null;
       // try FS write if possible, otherwise fallback to status only (manual button can download)
       try{
-        if (supportsFileSystemAccess()){
+        if (supportsDirectoryPicker()){
           await writeBackupToFile({ manual:false, reason });
         } else {
-          setStatus("Status: Auto-Backup nicht verfügbar (Browser). Nutze ‚Backup jetzt schreiben‘.");
+          setStatus("Status: Auto-Backup nicht verfügbar (dieser Browser). Nutze ‚Backup jetzt schreiben‘.");
         }
       }catch(e){
         console.warn("Auto-Backup failed", e);
@@ -321,9 +335,16 @@
   async function enable(){
     setEnabled(true);
 
-    if (!supportsFileSystemAccess()){
+    if (!supportsDirectoryPicker()){
+      // Android Chrome / Samsung Internet: showDirectoryPicker not available.
+      // We still enable the feature so "Backup jetzt schreiben" triggers a download.
       updateButtons();
-      setStatus("Status: Dein Browser unterstützt kein automatisches Überschreiben. Du kannst aber manuell sichern (Backup jetzt schreiben). Empfehlung: Chrome/Edge.");
+      const isAndroid = /Android/i.test(navigator.userAgent);
+      if (isAndroid){
+        setStatus("Status: Auto-Backup auf Android nicht verfügbar (kein Ordner-Zugriff). Nutze 'Backup jetzt schreiben' zum manuellen Download.");
+      } else {
+        setStatus("Status: Dein Browser unterstützt kein automatisches Überschreiben. Nutze 'Backup jetzt schreiben'. Empfehlung: Chrome/Edge auf Desktop.");
+      }
       scheduleDailyNudge();
       return;
     }
@@ -414,6 +435,24 @@
     return out;
   }
 
+  // NOTE: mergeMedLog was previously incorrectly nested inside the loop of mergeNotesByDate.
+  // It is now correctly defined at the top level of the IIFE.
+  function mergeMedLog(cur, inc){
+    const out = { events:[] };
+    const a = (cur && Array.isArray(cur.events)) ? cur.events : [];
+    const b = (inc && Array.isArray(inc.events)) ? inc.events : [];
+    out.events = a.slice();
+    const seen = new Set(out.events.map(e=>String(e && (e.id || (e.itemId+"|"+e.dateISO+"|"+e.slot))).slice(0,200)));
+    for (const e of b){
+      const key = String(e && (e.id || (e.itemId+"|"+e.dateISO+"|"+e.slot))).slice(0,200);
+      if (e && !seen.has(key)){
+        seen.add(key);
+        out.events.push(e);
+      }
+    }
+    return out;
+  }
+
   async function importBackupFile(file, replaceExisting){
     if (!file) return;
 
@@ -428,19 +467,31 @@
     const incBleed = Array.isArray(incoming.bleedDays) ? incoming.bleedDays : [];
     const incNotes = incoming.notesByDate && typeof incoming.notesByDate === "object" ? incoming.notesByDate : {};
     const incSettings = incoming.settings && typeof incoming.settings === "object" ? incoming.settings : {};
+    const incMedSettings = incoming.medSettings && typeof incoming.medSettings === "object" ? incoming.medSettings : {};
+    const incMedLog = incoming.medLog && typeof incoming.medLog === "object" ? incoming.medLog : { events:[] };
+    const incHiddenCycles = Array.isArray(incoming.hiddenCycles) ? incoming.hiddenCycles : [];
 
     if (replaceExisting){
       writeStorage(K_BLEED, incBleed);
       writeStorage(K_NOTES, incNotes);
       writeStorage(K_SETTINGS, incSettings);
+      writeStorage(K_MED_SETTINGS, incMedSettings);
+      writeStorage(K_MED_LOG, incMedLog);
+      writeStorage("pt_hidden_cycles_v1", incHiddenCycles);
     } else {
       const curBleed = readStorage(K_BLEED, []);
       const curNotes = readStorage(K_NOTES, {});
       const curSettings = readStorage(K_SETTINGS, {});
+      const curMedSettings = readStorage(K_MED_SETTINGS, {});
+      const curMedLog = readStorage(K_MED_LOG, { events:[] });
+      const curHiddenCycles = readStorage("pt_hidden_cycles_v1", []);
 
       writeStorage(K_BLEED, mergeArraysUnique(curBleed, incBleed));
       writeStorage(K_NOTES, mergeNotesByDate(curNotes, incNotes));
       writeStorage(K_SETTINGS, Object.assign({}, curSettings, incSettings));
+      writeStorage(K_MED_SETTINGS, Object.assign({}, curMedSettings, incMedSettings));
+      writeStorage(K_MED_LOG, mergeMedLog(curMedLog, incMedLog));
+      writeStorage("pt_hidden_cycles_v1", mergeArraysUnique(curHiddenCycles, incHiddenCycles));
     }
 
     // After import, schedule a backup and refresh UI

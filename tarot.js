@@ -254,6 +254,7 @@
 
     const dateISO = (ctx && ctx.dateISO) ? ctx.dateISO : isoToday();
     const slot = (ctx && typeof ctx.slot === "number") ? ctx.slot : 0;
+	const cardIndex = DECK.indexOf(card);
     // Remember last side per day + slot (so the "state" feels consistent)
     const flippedKey = `${KEY_DRAW_PREFIX}${dateISO}:flip:${slot}`;
     let wasFlipped = false;
@@ -265,7 +266,14 @@
       <div class="tarotFace tarotBack">
         <img class="tarotBackImg" src="tarot-back.png" alt="" aria-hidden="true">
       </div>
-      <div class="tarotFace tarotFront" aria-hidden="true"></div>
+      <div class="tarotFace tarotFront" aria-hidden="true">
+  <img
+    class="tarotFrontImg"
+    src="assets/${cardIndex}.png"
+    alt=""
+    draggable="false"
+  >
+</div>
     </div>
   `;
 

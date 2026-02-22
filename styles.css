@@ -734,7 +734,7 @@ input:focus, select:focus, textarea:focus{ border-color: rgba(201,166,255,0.60);
 }
 
 /* Modal */
-.modal{ position:fixed; inset:0; z-index:50; }
+.modal{ position:fixed; inset:0; z-index:50; overflow-y:auto; -webkit-overflow-scrolling:touch; padding: 0 10px; }
 .modalBackdrop{ position:absolute; inset:0; background:rgba(0,0,0,0.62); }
 .modalCard{
   position:relative;
@@ -746,6 +746,18 @@ input:focus, select:focus, textarea:focus{ border-color: rgba(201,166,255,0.60);
   padding: 14px;
   box-shadow: 0 22px 80px rgba(0,0,0,0.55);
 }
+
+/* Meds / Medi-Log: allow scrolling inside the modal card on small screens */
+.medsModalCard{
+  max-width: 520px;
+  max-height: calc(100dvh - 28px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+@supports not (height: 100dvh){
+  .medsModalCard{ max-height: calc(100vh - 28px); }
+}
+
 .modalHeader{ display:flex; justify-content:space-between; align-items:center; gap:10px; }
 
 .dayNoteIcon{
@@ -2181,4 +2193,418 @@ a:hover {
   flex-direction: column;
   align-items: center;
   gap: 10px;
+}
+
+.tarotFrontImg,
+.tarotBackImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+  display: block;
+}
+
+
+/* Blastozyste liegt exakt über dem Heute-Kreis */
+.blastocyst{
+  position: absolute;
+  inset: 0;              /* deckt den ganzen Kreis ab */
+  border-radius: 999px;
+  cursor: pointer;
+  z-index: 6;
+
+  --blasto-x: 0px; /* hier kannst du 1px/2px/3px testen */
+  transform: translateX(var(--blasto-x));
+
+  background:
+    radial-gradient(circle at 30% 30%,
+      rgba(255,255,255,0.95),
+      rgba(247,217,120,0.9) 35%,
+      rgba(247,217,120,0.55) 60%,
+      rgba(247,217,120,0.25) 100%
+    );
+
+  box-shadow:
+    0 0 10px rgba(247,217,120,0.55),
+    0 0 22px rgba(247,217,120,0.35);
+
+  animation: blastoPulse 3.2s ease-in-out infinite;
+}
+
+@keyframes blastoPulse {
+  0%, 100% {
+    transform: translateX(var(--blasto-x)) scale(1);
+    box-shadow:
+      0 0 10px rgba(247,217,120,0.45),
+      0 0 22px rgba(247,217,120,0.30);
+  }
+  50% {
+    transform: translateX(var(--blasto-x)) scale(1.12);
+    box-shadow:
+      0 0 18px rgba(247,217,120,0.70),
+      0 0 36px rgba(247,217,120,0.45);
+  }
+}
+/* === Modal ======================================= */
+
+.blastoModal .modalCard {
+  max-width: 420px;
+max-height: 88vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.blastoModal .blastoHeaderRight{
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.blastoModal .blastoToggle{
+  padding: 10px 12px;
+  min-width: 46px;
+}
+
+.blastoModal .blastoToggle .chev{
+  display: inline-block;
+  transition: transform 180ms ease;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.blastoModal.expanded .blastoToggle .chev{
+  transform: rotate(180deg);
+}
+
+.blastoModal .blastoBody{
+  margin-top: 10px;
+}
+
+.blastoModal .blastoLine,
+.blastoModal .blastoStep{
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 14px;
+  padding: 10px 12px;
+  background: rgba(255,255,255,0.03);
+}
+
+.blastoModal .blastoTag{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 12px;
+  border: 1px solid rgba(245,211,106,0.30);
+  background: rgba(245,211,106,0.10);
+  color: var(--text);
+  font-weight: 900;
+}
+
+.blastoModal .blastoText{
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.blastoModal .blastoSteps{
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.blastoModal .blastoStep.inactive{
+  opacity: 0.42;  /* „aktuell nicht“ ausgegraut */
+}
+
+.blastoModal .blastoStep.current{
+  opacity: 1;
+  border-color: rgba(245,211,106,0.28);
+  box-shadow: 0 12px 30px rgba(245,211,106,0.06);
+}
+
+.modalHeader{
+  position: sticky;
+  top: 0;
+  background: rgba(15,12,26,0.95);
+  z-index: 2;
+  padding-bottom: 8px;
+}
+
+
+/* Medi-Checkliste – CSS Snippet
+.medsCard{
+  border:1px solid var(--line);
+  border-radius:18px;
+  background:rgba(255,255,255,0.03);
+  padding:12px;
+  margin-bottom:12px;
+}
+.medsRow{
+  display:flex;
+  gap:10px;
+  align-items:flex-start;
+  padding:8px 0;
+}
+.medsRow.done{opacity:.6} */
+
+/* =========================
+   💊 Medi-Checkliste – Zusatzstyles (History + IO)
+   -> ans ENDE von styles.css anhängen
+   ========================= */
+
+.medsCalHeader{ display:flex; align-items:center; justify-content:space-between; gap:10px; position:relative; z-index:3; }
+.medsCalGroup{ margin-top:10px; }
+.medsCalGroupTitle{ font-size:12px; opacity:0.8; margin:10px 2px 6px; }
+.medsCalList{ display:flex; flex-direction:column; gap:8px; }
+
+label.medsCalRow{ flex-direction:row !important; }
+.medsCalRow{
+  display:flex; align-items:center; gap:10px;
+  padding:10px 10px; border-radius:14px;
+  border:1px solid rgba(255,255,255,0.10);
+  background: rgba(255,255,255,0.03);
+}
+.medsCalRow input{ width:18px; height:18px; }
+.medsCalName{ font-weight:850; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.medsCalMeta{ font-size:11px; opacity:0.75; margin-left:auto; white-space:nowrap; }
+.medsCalRow.done{ opacity:0.62; }
+
+.medsMyList{ display:flex; flex-direction:column; gap:8px; margin-top:10px; }
+.medsLine{
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
+  padding:12px 12px; border-radius:16px;
+  border:1px solid rgba(255,255,255,0.10);
+  background: rgba(0,0,0,0.12);
+  cursor:pointer;
+}
+.medsLineLeft{ display:flex; align-items:center; gap:10px; min-width:0; }
+.medsLineIcon{ font-size:18px; }
+.medsLineName{ font-weight:850; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:60vw; }
+.medsLineRight{ display:flex; align-items:center; gap:10px; }
+.medsLineMeta{ font-size:12px; opacity:0.80; white-space:nowrap; }
+.medsLineChevron{ font-size:18px; opacity:0.75; }
+
+label.medsPresetOpt{ flex-direction:row !important; }
+.medsPresetOpt{ padding:10px 10px; }
+.medsPresetName{ font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+.medsHistory{ margin-top:12px; }
+.medsHistorySum{ cursor:pointer; }
+.medsHistoryList{ display:flex; flex-direction:column; gap:8px; margin-top:10px; }
+.medsHistoryRow{
+  width:100%;
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
+  padding:10px 12px; border-radius:14px;
+  border:1px solid rgba(255,255,255,0.10);
+  background: rgba(255,255,255,0.03);
+}
+.medsHistoryDate{ font-weight:850; }
+.medsHistoryMeta{ font-size:12px; opacity:0.8; }
+
+/* ===== Medi-Log Overlay: Scroll-Fix ===== */
+
+/* Das eigentliche Modal-Panel darf scrollen */
+.medsModal .modalCard {
+  max-height: calc(100vh - 80px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Sicherstellen, dass der Hintergrund nicht blockiert */
+.medsModal {
+  align-items: flex-start;
+}
+
+/* Optional: etwas Luft unten, damit letzte Zeile gut erreichbar ist */
+.medsModal .modalCard {
+  padding-bottom: 24px;
+}
+
+/* ===== Medi Slots – bessere Lesbarkeit ===== */
+
+.medsSlotChips {
+  gap: 10px;
+}
+
+.medsChip {
+  background: rgba(255,255,255,0.06);
+  color: #e6dcff;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  border-radius: 999px;
+  padding: 8px 14px;
+  border: 1px solid rgba(255,255,255,0.14);
+}
+
+.medsChip.on {
+  background: rgba(202,169,255,0.18);   /* lavender glow */
+  color: #ffffff;
+  border-color: rgba(202,169,255,0.55);
+  box-shadow: 0 0 0 1px rgba(202,169,255,0.25),
+              0 0 12px rgba(202,169,255,0.25);
+}
+
+/* ===== Fix: Select / Dropdown Lesbarkeit (Dark Mode) ===== */
+
+.medsModal select {
+  background-color: rgba(20, 16, 40, 0.95);
+  color: #ffffff;
+  border: 1px solid rgba(255,255,255,0.18);
+}
+
+/* Dropdown-Liste */
+.medsModal select option {
+  background-color: #1a1433;   /* dunkles Violett */
+  color: #ffffff;
+}
+
+/* Hover / aktiv */
+.medsModal select option:checked,
+.medsModal select option:hover {
+  background-color: rgba(202,169,255,0.35); /* Lavendel */
+  color: #ffffff;
+}
+
+/* ===== Global Fix: Select/Option Lesbarkeit im Dark UI ===== */
+
+/* Das geschlossene Select-Feld */
+select {
+  background-color: rgba(20, 16, 40, 0.95);
+  color: #ffffff;
+  border: 1px solid rgba(255,255,255,0.18);
+}
+
+/* Geöffnete Dropdown-Liste (Optionen) */
+select option {
+  background-color: #1a1433;   /* dunkles Violett */
+  color: #ffffff;
+}
+
+/* Ausgewählt / Hover */
+select option:checked,
+select option:hover {
+  background-color: rgba(202,169,255,0.35);
+  color: #ffffff;
+}
+/* ===== Perioden-Liste: kompakte Zeilen + ⋮ Dropdown ===== */
+
+.periodRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.10);
+  background: rgba(255,255,255,0.04);
+  transition: background 0.15s;
+}
+.periodRow + .periodRow {
+  margin-top: 6px;
+}
+.periodRow--hidden {
+  opacity: 0.42;
+}
+.periodRow--hidden .periodRowDate {
+  text-decoration: line-through;
+  text-decoration-color: rgba(255,255,255,0.35);
+}
+
+.periodRowMain {
+  flex: 1;
+  min-width: 0;
+}
+.periodRowDate {
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.periodRowMeta {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+.periodRowHiddenTag {
+  color: var(--accent2);
+  font-size: 11px;
+  letter-spacing: 0.02em;
+}
+
+/* ⋮ button */
+.periodMenuBtn {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.12) !important;
+  background: rgba(255,255,255,0.05) !important;
+  color: var(--muted) !important;
+  font-size: 18px;
+  line-height: 1;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.periodMenuBtn:hover,
+.periodMenuBtn[aria-expanded="true"] {
+  background: rgba(202,169,255,0.18) !important;
+  color: var(--text) !important;
+}
+
+/* Dropdown popup */
+.periodDropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 200;
+  min-width: 160px;
+  background: rgba(20,16,52,0.97);
+  border: 1px solid rgba(255,255,255,0.16);
+  border-radius: 12px;
+  padding: 6px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.55);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.periodDropdownItem {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 9px 12px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-size: 14px;
+  font-family: var(--font-ui);
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.periodDropdownItem:hover {
+  background: rgba(202,169,255,0.15);
+}
+.periodDropdownItem.danger {
+  color: #ff7a9a;
+}
+.periodDropdownItem.danger:hover {
+  background: rgba(255,122,154,0.12);
+}
+
+/* Mobile: wider touch targets */
+@media (hover: none) and (pointer: coarse) {
+  .periodMenuBtn {
+    width: 42px;
+    height: 42px;
+  }
+  .periodDropdownItem {
+    padding: 12px 14px;
+    font-size: 15px;
+  }
 }
