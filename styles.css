@@ -2487,3 +2487,124 @@ select option:hover {
   background-color: rgba(202,169,255,0.35);
   color: #ffffff;
 }
+/* ===== Perioden-Liste: kompakte Zeilen + ⋮ Dropdown ===== */
+
+.periodRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.10);
+  background: rgba(255,255,255,0.04);
+  transition: background 0.15s;
+}
+.periodRow + .periodRow {
+  margin-top: 6px;
+}
+.periodRow--hidden {
+  opacity: 0.42;
+}
+.periodRow--hidden .periodRowDate {
+  text-decoration: line-through;
+  text-decoration-color: rgba(255,255,255,0.35);
+}
+
+.periodRowMain {
+  flex: 1;
+  min-width: 0;
+}
+.periodRowDate {
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.periodRowMeta {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+.periodRowHiddenTag {
+  color: var(--accent2);
+  font-size: 11px;
+  letter-spacing: 0.02em;
+}
+
+/* ⋮ button */
+.periodMenuBtn {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.12) !important;
+  background: rgba(255,255,255,0.05) !important;
+  color: var(--muted) !important;
+  font-size: 18px;
+  line-height: 1;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.periodMenuBtn:hover,
+.periodMenuBtn[aria-expanded="true"] {
+  background: rgba(202,169,255,0.18) !important;
+  color: var(--text) !important;
+}
+
+/* Dropdown popup */
+.periodDropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 200;
+  min-width: 160px;
+  background: rgba(20,16,52,0.97);
+  border: 1px solid rgba(255,255,255,0.16);
+  border-radius: 12px;
+  padding: 6px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.55);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.periodDropdownItem {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 9px 12px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-size: 14px;
+  font-family: var(--font-ui);
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.periodDropdownItem:hover {
+  background: rgba(202,169,255,0.15);
+}
+.periodDropdownItem.danger {
+  color: #ff7a9a;
+}
+.periodDropdownItem.danger:hover {
+  background: rgba(255,122,154,0.12);
+}
+
+/* Mobile: wider touch targets */
+@media (hover: none) and (pointer: coarse) {
+  .periodMenuBtn {
+    width: 42px;
+    height: 42px;
+  }
+  .periodDropdownItem {
+    padding: 12px 14px;
+    font-size: 15px;
+  }
+}

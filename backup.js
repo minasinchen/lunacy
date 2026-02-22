@@ -36,6 +36,12 @@ const K_MED_LOG = "pt_med_log_v1";
 
   function $(id){ return document.getElementById(id); }
 
+  function supportsDirectoryPicker(){
+    // showDirectoryPicker is NOT available on Android Chrome/Samsung Internet —
+    // only on desktop Chrome/Edge. Don't confuse with showSaveFilePicker which IS on Android.
+    return typeof window.showDirectoryPicker === "function";
+  }
+
   function supportsFileSystemAccess(){
     return !!(window.showDirectoryPicker || window.showSaveFilePicker);
   }
@@ -164,6 +170,7 @@ const K_MED_LOG = "pt_med_log_v1";
     const settings = readStorage(K_SETTINGS, {});
     const medSettings = readStorage(K_MED_SETTINGS, {});
     const medLog = readStorage(K_MED_LOG, { events:[] });
+    const hiddenCycles = readStorage("pt_hidden_cycles_v1", []);
 
     return {
       schema: "lunacy-backup-v1",
@@ -174,6 +181,7 @@ const K_MED_LOG = "pt_med_log_v1";
         settings,
         medSettings,
         medLog,
+        hiddenCycles,
       }
     };
   }
@@ -203,8 +211,8 @@ const K_MED_LOG = "pt_med_log_v1";
   async function writeBackupToFile(opts){
     const manual = !!opts?.manual;
 
-    if (!supportsFileSystemAccess()){
-      setStatus("Status: Dieser Browser unterstützt kein automatisches Überschreiben. Nutze ‚Backup jetzt schreiben‘ (Download) oder wechsle zu Chrome/Edge.");
+    if (!supportsDirectoryPicker()){
+      setStatus("Status: Dieser Browser unterstützt kein automatisches Überschreiben. Nutze ‚Backup jetzt schreiben‘ (Download) oder wechsle zu Chrome/Edge Desktop.");
       return { ok:false, reason:"no_fs_api" };
     }
 
@@ -288,10 +296,10 @@ const K_MED_LOG = "pt_med_log_v1";
       pendingTimer = null;
       // try FS write if possible, otherwise fallback to status only (manual button can download)
       try{
-        if (supportsFileSystemAccess()){
+        if (supportsDirectoryPicker()){
           await writeBackupToFile({ manual:false, reason });
         } else {
-          setStatus("Status: Auto-Backup nicht verfügbar (Browser). Nutze ‚Backup jetzt schreiben‘.");
+          setStatus("Status: Auto-Backup nicht verfügbar (dieser Browser). Nutze ‚Backup jetzt schreiben‘.");
         }
       }catch(e){
         console.warn("Auto-Backup failed", e);
@@ -327,9 +335,16 @@ const K_MED_LOG = "pt_med_log_v1";
   async function enable(){
     setEnabled(true);
 
-    if (!supportsFileSystemAccess()){
+    if (!supportsDirectoryPicker()){
+      // Android Chrome / Samsung Internet: showDirectoryPicker not available.
+      // We still enable the feature so "Backup jetzt schreiben" triggers a download.
       updateButtons();
-      setStatus("Status: Dein Browser unterstützt kein automatisches Überschreiben. Du kannst aber manuell sichern (Backup jetzt schreiben). Empfehlung: Chrome/Edge.");
+      const isAndroid = /Android/i.test(navigator.userAgent);
+      if (isAndroid){
+        setStatus("Status: Auto-Backup auf Android nicht verfügbar (kein Ordner-Zugriff). Nutze 'Backup jetzt schreiben' zum manuellen Download.");
+      } else {
+        setStatus("Status: Dein Browser unterstützt kein automatisches Überschreiben. Nutze 'Backup jetzt schreiben'. Empfehlung: Chrome/Edge auf Desktop.");
+      }
       scheduleDailyNudge();
       return;
     }
@@ -415,24 +430,25 @@ const K_MED_LOG = "pt_med_log_v1";
         }
       }
 
-
-function mergeMedLog(cur, inc){
-  const out = { events:[] };
-  const a = (cur && Array.isArray(cur.events)) ? cur.events : [];
-  const b = (inc && Array.isArray(inc.events)) ? inc.events : [];
-  out.events = a.slice();
-  const seen = new Set(out.events.map(e=>String(e && (e.id || (e.itemId+"|"+e.dateISO+"|"+e.slot))).slice(0,200)));
-  for (const e of b){
-    const key = String(e && (e.id || (e.itemId+"|"+e.dateISO+"|"+e.slot))).slice(0,200);
-    if (e && !seen.has(key)){
-      seen.add(key);
-      out.events.push(e);
-    }
-  }
-  return out;
-}
-
       out[dateISO] = a;
+    }
+    return out;
+  }
+
+  // NOTE: mergeMedLog was previously incorrectly nested inside the loop of mergeNotesByDate.
+  // It is now correctly defined at the top level of the IIFE.
+  function mergeMedLog(cur, inc){
+    const out = { events:[] };
+    const a = (cur && Array.isArray(cur.events)) ? cur.events : [];
+    const b = (inc && Array.isArray(inc.events)) ? inc.events : [];
+    out.events = a.slice();
+    const seen = new Set(out.events.map(e=>String(e && (e.id || (e.itemId+"|"+e.dateISO+"|"+e.slot))).slice(0,200)));
+    for (const e of b){
+      const key = String(e && (e.id || (e.itemId+"|"+e.dateISO+"|"+e.slot))).slice(0,200);
+      if (e && !seen.has(key)){
+        seen.add(key);
+        out.events.push(e);
+      }
     }
     return out;
   }
@@ -453,6 +469,7 @@ function mergeMedLog(cur, inc){
     const incSettings = incoming.settings && typeof incoming.settings === "object" ? incoming.settings : {};
     const incMedSettings = incoming.medSettings && typeof incoming.medSettings === "object" ? incoming.medSettings : {};
     const incMedLog = incoming.medLog && typeof incoming.medLog === "object" ? incoming.medLog : { events:[] };
+    const incHiddenCycles = Array.isArray(incoming.hiddenCycles) ? incoming.hiddenCycles : [];
 
     if (replaceExisting){
       writeStorage(K_BLEED, incBleed);
@@ -460,18 +477,21 @@ function mergeMedLog(cur, inc){
       writeStorage(K_SETTINGS, incSettings);
       writeStorage(K_MED_SETTINGS, incMedSettings);
       writeStorage(K_MED_LOG, incMedLog);
+      writeStorage("pt_hidden_cycles_v1", incHiddenCycles);
     } else {
       const curBleed = readStorage(K_BLEED, []);
       const curNotes = readStorage(K_NOTES, {});
       const curSettings = readStorage(K_SETTINGS, {});
       const curMedSettings = readStorage(K_MED_SETTINGS, {});
       const curMedLog = readStorage(K_MED_LOG, { events:[] });
+      const curHiddenCycles = readStorage("pt_hidden_cycles_v1", []);
 
       writeStorage(K_BLEED, mergeArraysUnique(curBleed, incBleed));
       writeStorage(K_NOTES, mergeNotesByDate(curNotes, incNotes));
       writeStorage(K_SETTINGS, Object.assign({}, curSettings, incSettings));
       writeStorage(K_MED_SETTINGS, Object.assign({}, curMedSettings, incMedSettings));
       writeStorage(K_MED_LOG, mergeMedLog(curMedLog, incMedLog));
+      writeStorage("pt_hidden_cycles_v1", mergeArraysUnique(curHiddenCycles, incHiddenCycles));
     }
 
     // After import, schedule a backup and refresh UI

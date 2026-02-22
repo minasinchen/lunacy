@@ -59,18 +59,30 @@
   }
 
   function compute(payload){
-    const { periods, model, notesByDate, avgCycle, diffDays, addDays, parseISO, between, computeOvulationForCycle } = payload;
+    const { periods, allPeriods, hiddenCycles, model, notesByDate, avgCycle, diffDays, addDays, parseISO, between, computeOvulationForCycle } = payload;
 
-    // cycles old->new for pattern recognition
-    const cycles = (periods || []).slice(0, 12).slice().sort((a,b)=>a.start-b.start);
+    // Build a lookup of ALL periods sorted old→new for finding real next starts
+    const allSorted = (allPeriods || periods || []).slice().sort((a,b)=>a.start-b.start);
+    const hiddenSet = new Set(hiddenCycles || []);
+
+    // We iterate visible periods only (from payload.periods), but look up real next starts
+    // from allSorted to avoid super-cycle Mittelschmerz windows.
+    const visibleSorted = (periods || []).slice().sort((a,b)=>a.start-b.start);
     const out = [];
 
-    for (let i=0;i<cycles.length;i++){
-      const cur = cycles[i];
-      const next = (i+1 < cycles.length) ? cycles[i+1] : { start: addDays(cur.start, avgCycle || model?.cycleLen || 28) };
-      const cycleEnd = addDays(next.start, -1);
+    for (let vi = 0; vi < visibleSorted.length; vi++){
+      const cur = visibleSorted[vi];
+      const curStart = cur.start;
 
-      const msAll = findMittelschmerzInWindow(notesByDate, cur.start, cycleEnd, between, parseISO);
+      // Find the real next period in allSorted (the very next one, regardless of hidden status)
+      const curIdx = allSorted.findIndex(p => p.start.getTime() === curStart.getTime());
+      const realNext = (curIdx >= 0 && curIdx + 1 < allSorted.length)
+        ? allSorted[curIdx + 1]
+        : { start: addDays(curStart, avgCycle || model?.cycleLen || 28) };
+
+      const cycleEnd = addDays(realNext.start, -1);
+
+      const msAll = findMittelschmerzInWindow(notesByDate, curStart, cycleEnd, between, parseISO);
 
       // Pick a Mittelschmerz entry for this cycle.
       // Preference order:
@@ -84,13 +96,13 @@
         }) || msAll[0];
       }
 
-      const ov = computeOvulationForCycle(cur.start, next.start, model, notesByDate);
+      const ov = computeOvulationForCycle(curStart, realNext.start, model, notesByDate);
 
       const msDate = ms ? parseISO(ms.dateISO) : null;
-      const proximity = (msDate ? diffDays(ov.ovuDate, msDate) : null); // ms - ov (in days)
+      const proximity = (msDate ? diffDays(ov.ovuDate, msDate) : null);
 
       out.push({
-        cycleStart: cur.start,
+        cycleStart: curStart,
         ms,
         msDate,
         side: normSide(ms?.note?.side),

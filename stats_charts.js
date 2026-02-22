@@ -390,7 +390,14 @@
   }
 
   function computeSeriesFromPeriods(payload){
-    const periods = payload.periods || [];
+    const periods = payload.periods || []; // ALL periods (incl. hidden) for correct lengths
+    const hiddenSet = new Set(payload.hiddenCycles || []);
+    const isoFn = payload.iso || ((d) => {
+      const dd = new Date(d);
+      return dd.getFullYear() + "-" +
+        String(dd.getMonth()+1).padStart(2,"0") + "-" +
+        String(dd.getDate()).padStart(2,"0");
+    });
     const avgCycle = Number(payload.avgCycle || 28);
     const diffDays = payload.diffDays;
     const addDays = payload.addDays;
@@ -399,20 +406,32 @@
     const notesByDate = payload.notesByDate;
     const formatDateDE = payload.formatDateDE;
 
-    const cycles = periods.slice(0, 12).sort((a,b)=>a.start-b.start); // old -> new
+    // Sort all periods old→new. We iterate ALL to get real consecutive starts,
+    // but only push to chart series when the cycle itself is NOT hidden.
+    const cycles = periods.slice(0, 14).sort((a,b)=>a.start-b.start);
     const ovZTs = [];
     const cycleLens = [];
+    let chartIdx = 0; // count only visible cycles for shortLabel numbering
 
     for (let i=0;i<cycles.length;i++){
       const cur = cycles[i];
+      const curISO = isoFn(cur.start);
+      const isHidden = hiddenSet.has(curISO);
+
+      // Always use the REAL next period start (from allPeriods) for correct length.
+      // This prevents a hidden cycle from causing a "super-cycle" gap in the chart.
       const next = (i+1 < cycles.length) ? cycles[i+1] : { start: addDays(cur.start, avgCycle) };
 
+      // Skip hidden cycles — don't add them to the chart series
+      if (isHidden) continue;
+
+      chartIdx++;
       const len = diffDays(cur.start, next.start);
-      if (len>=15 && len<=60){
+      if (len > 0){
         cycleLens.push({
           value: len,
           label: `Start ${formatDateDE(cur.start)}`,
-          shortLabel: `#${i+1}`,
+          shortLabel: `#${chartIdx}`,
         });
       }
 

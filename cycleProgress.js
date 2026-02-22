@@ -53,7 +53,7 @@
     const model = ctx.model;
 
     const cycleLen = Math.max(1, Number(model?.cycleLen) || 28);
-    const dayInCycle = clamp(safeDiffDays(cycleStart, today) + 1, 1, cycleLen);
+    const dayInCycle = Math.max(1, safeDiffDays(cycleStart, today) + 1); // no upper clamp
     const ovDay = clamp(safeDiffDays(cycleStart, ovuDate) + 1, 1, cycleLen);
 
     const isBleeding = Array.isArray(ctx.days) && ctx.days.includes(todayISO);
