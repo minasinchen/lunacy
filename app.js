@@ -1113,28 +1113,30 @@ async function shareSummaryAsImage(){
   );
   const settings = loadSettings();
 
-  const nextPeriods  = model.forecastPeriods.slice(0, 6).map(r => formatDateDE(r.start));
-  const nextOvISOs   = model.ovulationDaysISO.slice(0, 6);
-  const nextOvDates  = nextOvISOs.map(d => formatDateDE(d));
+  const nextPeriods = model.forecastPeriods.slice(0, 6).map(r => formatDateDE(r.start));
+  const nextOvISOs  = model.ovulationDaysISO.slice(0, 6);
+  const nextOvDates = nextOvISOs.map(d => formatDateDE(d));
 
-  // TTC / Kinder-ETs
-  let ttcHTML = "";
+  // TTC / Kinder-ETs rows
+  let ttcBlock = "";
   if (settings.ttc) {
     const rows = nextOvISOs.map((dISO) => {
       const ovuDate = parseISO(dISO);
       const et = computeETFromOvulation(ovuDate);
       const w = getWesternSign(et);
       const cz = getChineseZodiac(et);
-      return `<div style="padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.08);display:flex;gap:10px;align-items:center;">
-        <span style="opacity:.65;font-size:12px;flex-shrink:0;">ES ${formatDateDE(ovuDate)}</span>
-        <span>→ ET ${formatDateDE(et)}</span>
-        <span style="opacity:.65;font-size:12px;">${escapeHtml(w.name)}</span>
-        ${typeof getChineseZodiac === "function" ? `<span style="opacity:.55;font-size:12px;">${escapeHtml(cz.animal)}</span>` : ""}
-      </div>`;
+      return `
+        <div style="display:flex;align-items:baseline;gap:10px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,0.07);flex-wrap:wrap;">
+          <span style="opacity:.55;font-size:11px;white-space:nowrap;">ES ${escapeHtml(formatDateDE(ovuDate))}</span>
+          <span style="font-size:12px;opacity:.6;">→</span>
+          <span style="font-weight:700;font-size:15px;">ET ${escapeHtml(formatDateDE(et))}</span>
+          <span style="opacity:.6;font-size:12px;">${escapeHtml(w.name)}</span>
+          <span style="opacity:.45;font-size:11px;">${escapeHtml(cz.animal)}</span>
+        </div>`;
     }).join("");
-    ttcHTML = `
-      <div style="margin-top:14px;">
-        <div style="font-size:12px;opacity:.6;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em;">Kinder-ETs (≈)</div>
+    ttcBlock = `
+      <div style="margin-top:16px;">
+        <div style="font-size:10px;opacity:.5;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">Kinder-ETs (≈)</div>
         ${rows}
       </div>`;
   }
@@ -1142,79 +1144,140 @@ async function shareSummaryAsImage(){
   const month = document.getElementById("monthTitle")?.innerText?.trim() || "";
   const title = month ? `Lunacy – ${month}` : "Lunacy";
 
+  // ---- mobile-native card width ----
+  // Use actual screen width capped at 420px so the image fits natively on any phone.
+  // Scale × 3 for Retina sharpness.
+  const CARD_W = Math.min(Math.round(window.screen?.width || window.innerWidth || 390), 420);
+  const PAD = 20;
+  const SCALE = 3;
+
   // ---- build share card DOM ----
   const wrap = document.createElement("div");
   wrap.setAttribute("aria-hidden", "true");
   Object.assign(wrap.style, {
-    position: "fixed", left: "-99999px", top: "0",
-    width: "880px", padding: "32px",
-    borderRadius: "28px",
+    position: "fixed",
+    left: "-99999px",
+    top: "0",
+    width: CARD_W + "px",
+    padding: PAD + "px",
+    boxSizing: "border-box",
+    borderRadius: "24px",
     color: "#fbf7ff",
-    fontFamily: "ui-sans-serif, system-ui, sans-serif",
+    fontFamily: "ui-sans-serif, system-ui, -apple-system, sans-serif",
     background:
-      "radial-gradient(900px 500px at 20% -10%, rgba(201,166,255,0.25), transparent 60%)," +
-      "radial-gradient(700px 500px at 90% 0%, rgba(247,217,120,0.18), transparent 55%)," +
-      "linear-gradient(180deg, #07051a, #140f33)",
+      "radial-gradient(ellipse 120% 60% at 20% -5%, rgba(201,166,255,0.28), transparent 60%)," +
+      "radial-gradient(ellipse 100% 50% at 90% 0%, rgba(247,217,120,0.2), transparent 55%)," +
+      "linear-gradient(180deg, #07051a 0%, #120e30 100%)",
   });
 
-  // star canvas
+  // star canvas — full card width, auto height
+  const STAR_W = CARD_W;
+  const STAR_H = 400;
   const stars = document.createElement("canvas");
-  stars.width = 880; stars.height = 520;
-  Object.assign(stars.style, { position:"absolute", inset:"0", zIndex:"0" });
+  stars.width = STAR_W * SCALE;
+  stars.height = STAR_H * SCALE;
+  Object.assign(stars.style, {
+    position: "absolute", left: "0", top: "0",
+    width: STAR_W + "px", height: STAR_H + "px",
+    zIndex: "0", borderRadius: "24px",
+  });
   const sctx = stars.getContext("2d");
+  sctx.scale(SCALE, SCALE);
   sctx.fillStyle = "transparent";
-  sctx.fillRect(0,0,880,520);
-  for (let i=0;i<120;i++){
-    const x=Math.random()*880, y=Math.random()*520, r=Math.random()*1.3+0.2, a=Math.random()*0.7+0.2;
-    sctx.beginPath(); sctx.arc(x,y,r,0,Math.PI*2);
-    sctx.fillStyle=`rgba(255,255,255,${a})`; sctx.fill();
+  sctx.fillRect(0, 0, STAR_W, STAR_H);
+  for (let i = 0; i < 90; i++){
+    const x = Math.random() * STAR_W;
+    const y = Math.random() * STAR_H;
+    const r = Math.random() * 1.2 + 0.2;
+    const a = Math.random() * 0.65 + 0.2;
+    sctx.beginPath(); sctx.arc(x, y, r, 0, Math.PI * 2);
+    sctx.fillStyle = `rgba(255,255,255,${a})`; sctx.fill();
   }
+  wrap.style.position = "fixed"; // re-confirm for stacking context
+  wrap.style.overflow = "hidden";
   wrap.appendChild(stars);
 
   // header
   const head = document.createElement("div");
-  Object.assign(head.style, { display:"flex", alignItems:"center", gap:"14px", marginBottom:"18px", position:"relative", zIndex:"1" });
-  const img = document.createElement("img");
-  img.src="logo.png"; img.alt="Lunacy";
-  Object.assign(img.style, { width:"48px", height:"48px", borderRadius:"15px", border:"1px solid rgba(255,255,255,0.2)", boxShadow:"0 0 20px rgba(247,217,120,0.3)" });
+  Object.assign(head.style, {
+    display: "flex", alignItems: "center", gap: "12px",
+    marginBottom: "16px", position: "relative", zIndex: "1",
+  });
+  const logoImg = document.createElement("img");
+  logoImg.src = "logo.png"; logoImg.alt = "Lunacy";
+  Object.assign(logoImg.style, {
+    width: "44px", height: "44px", borderRadius: "13px",
+    border: "1px solid rgba(255,255,255,0.2)",
+    boxShadow: "0 0 18px rgba(247,217,120,0.3)",
+    flexShrink: "0",
+  });
   const tbox = document.createElement("div");
-  tbox.innerHTML = `<div style="font-weight:900;font-size:20px;color:#f7d978;">Lunacy</div><div style="opacity:.7;font-size:13px;">${escapeHtml(month)}</div>`;
-  head.append(img, tbox);
+  tbox.innerHTML =
+    `<div style="font-weight:900;font-size:19px;color:#f7d978;letter-spacing:-.01em;">Lunacy</div>` +
+    (month ? `<div style="opacity:.65;font-size:12px;margin-top:1px;">${escapeHtml(month)}</div>` : "");
+  head.append(logoImg, tbox);
   wrap.appendChild(head);
+
+  // helper: badge section
+  function badgeSection(label, items) {
+    const badges = items.map(x =>
+      `<span style="
+        display:inline-block;
+        background:rgba(201,166,255,0.16);
+        border:1px solid rgba(201,166,255,0.32);
+        border-radius:18px;
+        padding:5px 12px;
+        font-size:13px;
+        font-weight:600;
+        white-space:nowrap;
+      ">${escapeHtml(x)}</span>`
+    ).join("");
+    return `
+      <div style="margin-bottom:16px;">
+        <div style="font-size:10px;opacity:.5;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;">${label}</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;">${badges}</div>
+      </div>`;
+  }
 
   // main card
   const card = document.createElement("div");
   Object.assign(card.style, {
-    position:"relative", zIndex:"1",
-    background:"rgba(24,16,52,0.88)",
-    border:"1px solid rgba(255,255,255,0.13)",
-    borderRadius:"20px", padding:"20px",
-    boxShadow:"0 20px 60px rgba(0,0,0,0.45)",
-    fontSize:"14px", lineHeight:"1.5",
+    position: "relative", zIndex: "1",
+    background: "rgba(20,13,46,0.85)",
+    border: "1px solid rgba(255,255,255,0.11)",
+    borderRadius: "18px",
+    padding: "16px",
+    boxShadow: "0 16px 48px rgba(0,0,0,0.5)",
+    fontSize: "14px",
+    lineHeight: "1.5",
   });
-
-  function section(label, items) {
-    return `
-      <div style="margin-bottom:14px;">
-        <div style="font-size:11px;opacity:.55;text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px;">${label}</div>
-        <div style="display:flex;flex-wrap:wrap;gap:7px;">
-          ${items.map(x=>`<span style="background:rgba(201,166,255,0.18);border:1px solid rgba(201,166,255,0.3);border-radius:20px;padding:4px 12px;font-size:13px;">${escapeHtml(x)}</span>`).join("")}
-        </div>
-      </div>`;
-  }
-
   card.innerHTML =
-    section("Nächste 6 Perioden (≈)", nextPeriods) +
-    section("Nächste 6 Eisprünge (≈)", nextOvDates) +
-    ttcHTML;
+    badgeSection("Nächste 6 Perioden (≈)", nextPeriods) +
+    badgeSection("Nächste 6 Eisprünge (≈)", nextOvDates) +
+    ttcBlock;
 
   wrap.appendChild(card);
+
+  // watermark
+  const wm = document.createElement("div");
+  Object.assign(wm.style, {
+    textAlign: "center",
+    fontSize: "10px",
+    opacity: ".3",
+    marginTop: "10px",
+    position: "relative",
+    zIndex: "1",
+  });
+  wm.textContent = "Erstellt mit Lunacy · lokal & privat";
+  wrap.appendChild(wm);
+
   document.body.appendChild(wrap);
 
   const canvas = await h2c(wrap, {
     backgroundColor: null,
-    scale: Math.min(2, window.devicePixelRatio || 1),
+    scale: SCALE,
     useCORS: true,
+    logging: false,
   });
   document.body.removeChild(wrap);
 
@@ -1224,8 +1287,8 @@ async function shareSummaryAsImage(){
   const filename = `lunacy_${iso(new Date())}.png`;
   const file = new File([blob], filename, { type: "image/png" });
 
-  if (navigator.share && navigator.canShare?.({ files:[file] })){
-    await navigator.share({ title, files:[file] });
+  if (navigator.share && navigator.canShare?.({ files: [file] })){
+    await navigator.share({ title, files: [file] });
     return;
   }
 
